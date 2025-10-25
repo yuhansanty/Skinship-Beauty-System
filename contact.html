@@ -268,7 +268,7 @@
         padding: 8px 12px;
       }
     }
-    a[href="LandingPage.html"] {
+    a[href="index.html"] {
       position: absolute;
       top: 24px;
       left: 24px;
@@ -283,7 +283,7 @@
       display: inline-block;
       transition: background 0.2s, font-size 0.2s, padding 0.2s;
     }
-    a[href="LandingPage.html"] {
+    a[href="index.html"] {
       position: static !important;
       top: auto !important;
       left: auto !important;
@@ -293,7 +293,7 @@
       z-index: auto !important;
     }
     @media (max-width: 600px) {
-      a[href="LandingPage.html"] {
+      a[href="index.html"] {
         position: static;
         display: block;
         width: fit-content;
@@ -323,7 +323,7 @@
   </style>
 </head>
 <body>
-  <a href="LandingPage.html" style="position: absolute; top: 24px; left: 24px; background: var(--primary-pink); color: #fff; padding: 10px 22px; border-radius: 5px; text-decoration: none; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 1000;">&larr; Back</a>
+  <a href="index.html" style="position: absolute; top: 24px; left: 24px; background: var(--primary-pink); color: #fff; padding: 10px 22px; border-radius: 5px; text-decoration: none; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 1000;">&larr; Back</a>
   <section class="contact" id="contact">
     <div class="container">
       <div class="section-title">
@@ -370,7 +370,7 @@
       <p class="countdown-message">
         You will be automatically redirected to the home page in <span id="countdown">30</span> seconds.
       </p>
-      <a href="LandingPage.html" class="success-btn">
+      <a href="index.html" class="success-btn">
         <i class="fas fa-home" style="margin-right: 8px;"></i>
         Back to Home
       </a>
@@ -572,7 +572,7 @@ servicesHTML += `
         
         if (timeLeft <= 0) {
           clearInterval(countdownInterval);
-          window.location.href = 'LandingPage.html';
+          window.location.href = 'index.html';
         }
       }, 1000);
       
