@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Skinship Beauty Register</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body {
       background-color: #f7d4d0;
@@ -25,17 +26,52 @@
       display: flex;
       gap: 30px;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       color: #2b2b2b;
       position: relative;
       z-index: 1;
+      flex: 1;
+    }
+
+    @media (max-width: 768px) {
+      .register-container {
+        flex-direction: column;
+        gap: 20px;
+        padding: 10px;
+      }
+      
+      .form-section {
+        max-width: 100%;
+        width: 100%;
+        padding: 15px 20px;
+      }
+      
+      .image-section {
+        width: 200px;
+        height: 200px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      
+      .form-section {
+        padding: 15px;
+      }
+      
+      .welcome-text {
+        font-size: 1.5rem;
+        letter-spacing: 2px;
+      }
     }
 
     .form-section {
-      max-width: 325px;
+      max-width: 450px;
       flex: 1;
       background: #ffe2ec;
-      padding: 13px 12px 20px 12px;
+      padding: 20px 25px;
       border-radius: 19px;
       backdrop-filter: blur(8px);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
@@ -57,7 +93,7 @@
     .subtext {
       font-size: 0.85rem;
       color: #000000cc;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       user-select: none;
     }
 
@@ -65,7 +101,7 @@
       font-weight: 700;
       font-size: 1.05rem;
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 3px;
       user-select: none;
     }
 
@@ -75,7 +111,7 @@
     input[type="tel"] {
       display: block;
       width: 100%;
-      padding: 15px 18px;
+      padding: 12px 15px;
       border: 1px solid #b89a96;
       border-radius: 15px;
       font-size: 1rem;
@@ -103,7 +139,7 @@
     }
 
     .checkbox-group {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
       display: flex;
       align-items: center;
     }
@@ -126,13 +162,13 @@
 
     button.register-btn {
       width: 100%;
-      padding: 14px 0;
+      padding: 12px 0;
       background-color: #da5c73;
       border: none;
       border-radius: 15px;
       font-weight: 800;
-      font-size: 1.2rem;
-      letter-spacing: 1.8px;
+      font-size: 1.1rem;
+      letter-spacing: 1.5px;
       color: black;
       cursor: pointer;
       transition: background-color 0.35s ease;
@@ -352,6 +388,283 @@
     .checkbox-group label, .checkbox-group a, .highlight-link {
       font-weight: 400 !important;
     }
+    
+    /* Password toggle styles */
+    .password-input-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    
+    .password-toggle-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.3s ease;
+      z-index: 10;
+    }
+    
+    .password-toggle-btn:hover {
+      color: #da5c73;
+    }
+    
+    .password-toggle-btn:focus {
+      outline: none;
+      color: #da5c73;
+    }
+    
+    .password-input-container input {
+      padding-right: 40px;
+    }
+    
+    /* Enhanced responsive styles */
+    @media (max-width: 1200px) {
+      .register-container {
+        gap: 40px;
+        max-width: 95vw;
+      }
+      
+      .form-section {
+        max-width: 450px;
+        padding: 25px;
+      }
+      
+      .image-section {
+        width: 280px;
+        height: 280px;
+      }
+    }
+    
+    @media (max-width: 1024px) {
+      .register-container {
+        gap: 30px;
+        max-width: 100vw;
+        padding: 0 20px;
+      }
+      
+      .form-section {
+        max-width: 400px;
+        padding: 20px;
+      }
+      
+      .image-section {
+        width: 250px;
+        height: 250px;
+      }
+    }
+    
+    @media (max-width: 900px) {
+      .register-container {
+        flex-direction: column;
+        gap: 25px;
+        align-items: center;
+        padding: 20px;
+        justify-content: center;
+      }
+      
+      .form-section {
+        max-width: 90vw;
+        width: 100%;
+        padding: 20px;
+        order: 1;
+      }
+      
+      .image-section {
+        width: 200px !important;
+        height: 200px !important;
+        order: 2;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+        min-height: auto;
+        overflow-y: auto;
+      }
+      
+      .register-container {
+        gap: 20px;
+        padding: 15px;
+        min-height: auto;
+        flex: none;
+      }
+      
+      .form-section {
+        max-width: 95vw;
+        width: 100%;
+        padding: 18px;
+        margin-top: 60px; /* Space for back button */
+      }
+      
+      .image-section {
+        width: 180px !important;
+        height: 180px !important;
+      }
+      
+      .welcome-text {
+        font-size: 1.8rem;
+        letter-spacing: 2px;
+      }
+      
+      .subtext {
+        font-size: 0.85rem;
+      }
+    }
+    
+    @media (max-width: 600px) {
+      body {
+        padding: 5px;
+        min-height: auto;
+        overflow-y: auto;
+      }
+      
+      .register-container {
+        gap: 15px;
+        padding: 10px;
+        min-height: auto;
+        flex: none;
+      }
+      
+      .form-section {
+        max-width: 98vw;
+        width: 100%;
+        padding: 15px;
+        margin-top: 60px; /* Space for back button */
+      }
+      
+      .image-section {
+        width: 150px !important;
+        height: 150px !important;
+      }
+      
+      .welcome-text {
+        font-size: 1.6rem;
+        letter-spacing: 1px;
+      }
+      
+      .subtext {
+        font-size: 0.8rem;
+      }
+      
+      input, .register-btn, .highlight-link {
+        font-size: 0.95rem !important;
+      }
+      
+      .back-btn {
+        padding: 8px 16px !important;
+        font-size: 0.9rem;
+        top: 15px;
+        left: 15px;
+        z-index: 1000;
+      }
+      
+      /* Stack name fields vertically on small screens */
+      .form-section > div:first-child {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .form-section > div:first-child > div {
+        flex: 1 1 100%;
+        min-width: 100%;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      body {
+        min-height: auto;
+        overflow-y: auto;
+      }
+      
+      .register-container {
+        min-height: auto;
+        flex: none;
+      }
+      
+      .form-section {
+        max-width: 100vw;
+        width: 100%;
+        padding: 12px;
+        margin-top: 60px; /* Space for back button */
+      }
+      
+      .image-section {
+        width: 120px !important;
+        height: 120px !important;
+      }
+      
+      .welcome-text {
+        font-size: 1.4rem;
+        letter-spacing: 1px;
+      }
+      
+      .subtext {
+        font-size: 0.75rem;
+      }
+      
+      input, .register-btn {
+        font-size: 0.9rem !important;
+        padding: 10px 12px;
+      }
+      
+      .back-btn {
+        padding: 6px 12px !important;
+        font-size: 0.85rem;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+      }
+      
+      .checkbox-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      
+      .checkbox-group label {
+        font-size: 0.9rem;
+      }
+    }
+    
+    @media (max-width: 360px) {
+      body {
+        min-height: auto;
+        overflow-y: auto;
+      }
+      
+      .register-container {
+        min-height: auto;
+        flex: none;
+      }
+      
+      .form-section {
+        padding: 10px;
+        margin-top: 60px; /* Space for back button */
+      }
+      
+      .welcome-text {
+        font-size: 1.2rem;
+      }
+      
+      input, .register-btn {
+        font-size: 0.85rem !important;
+        padding: 8px 10px;
+      }
+      
+      .back-btn {
+        padding: 5px 10px !important;
+        font-size: 0.8rem;
+        z-index: 1000;
+      }
+    }
   </style>
 </head>
 <body>
@@ -384,11 +697,21 @@
         <input id="phone_number" name="phone_number" type="tel" placeholder="+63 9XX XXX XXXX" required />
 
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Password" required />
+        <div class="password-input-container">
+          <input id="password" name="password" type="password" placeholder="Password" required />
+          <button type="button" class="password-toggle-btn" onclick="togglePassword('password')">
+            <i class="fa-solid fa-eye" id="password-eye"></i>
+          </button>
+        </div>
         <small>Password must be at least 8 characters, include letters and numbers.</small>
 
         <label for="confirm_password">Confirm Password</label>
-        <input id="confirm_password" name="confirm_password" type="password" placeholder="Confirm Password" required />
+        <div class="password-input-container">
+          <input id="confirm_password" name="confirm_password" type="password" placeholder="Confirm Password" required />
+          <button type="button" class="password-toggle-btn" onclick="togglePassword('confirm_password')">
+            <i class="fa-solid fa-eye" id="confirm_password-eye"></i>
+          </button>
+        </div>
 
         <div class="checkbox-group">
           <input type="checkbox" id="terms" name="terms" required />
@@ -670,6 +993,22 @@
     });
   </script>
   <script>
+    // Password toggle function
+    function togglePassword(fieldId) {
+      const field = document.getElementById(fieldId);
+      const eyeIcon = document.getElementById(fieldId + '-eye');
+      
+      if (field.type === 'password') {
+        field.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+      } else {
+        field.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+      }
+    }
+    
     // Password validation for registration
     const registerForm = document.getElementById('registerForm');
     const passwordInput = document.getElementById('password');
@@ -921,5 +1260,6 @@
       showSuccessPanel();
     });
   </script>
+  
 </body>
 </html>

@@ -292,7 +292,35 @@
       margin: 12px 0 8px 0 !important;
       z-index: auto !important;
     }
+    @media (max-width: 1024px) {
+      .container {
+        max-width: 90vw;
+        margin: 40px auto;
+        padding: 30px 25px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        max-width: 95vw;
+        margin: 30px auto;
+        padding: 25px 20px;
+      }
+      
+      .section-title h2 {
+        font-size: 1.5rem;
+      }
+      
+      .section-title p {
+        font-size: 0.9rem;
+      }
+    }
+    
     @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      
       a[href="index.html"] {
         position: static;
         display: block;
@@ -318,6 +346,47 @@
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
+      }
+      
+      .section-title h2 {
+        font-size: 1.3rem;
+      }
+      
+      .section-title p {
+        font-size: 0.85rem;
+      }
+      
+      .btn {
+        font-size: 0.9rem;
+        padding: 12px 24px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .container {
+        padding: 15px 3vw !important;
+      }
+      
+      .section-title h2 {
+        font-size: 1.2rem;
+      }
+      
+      .section-title p {
+        font-size: 0.8rem;
+      }
+      
+      .form-group label {
+        font-size: 0.9rem;
+      }
+      
+      .form-group input, .form-group textarea, .form-group select {
+        font-size: 0.9rem;
+        padding: 10px 12px;
+      }
+      
+      .btn {
+        font-size: 0.85rem;
+        padding: 10px 20px;
       }
     }
   </style>
@@ -787,6 +856,7 @@ const newData = {
     });
   </script>
   <script type="module" src="role-check.js"></script>
+  
 
 </body>
 </html>
