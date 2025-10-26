@@ -1593,13 +1593,96 @@ function filterByDate() {
     
     if (dateFrom && rowDate < dateFrom) show = false;
     if (dateTo && rowDate > dateTo) show = false;
-    
     row.style.display = show ? '' : 'none';
   });
 }
 
-// Export to CSV
+// Export to PDF (default)
 function exportToCSV() {
+  exportToPDF();
+}
+
+function exportToPDF() {
+  try {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      showToast('PDF library not loaded. Please refresh the page and try again.', 'error');
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Add header
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Skinship Beauty - Purchase Orders Report', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-PH')} at ${new Date().toLocaleTimeString('en-PH')}`, 105, 30, { align: 'center' });
+    doc.text(`Total Orders: ${purchaseOrders.length}`, 105, 37, { align: 'center' });
+    
+    // Prepare table data
+    const tableData = purchaseOrders.map(po => [
+      po.id || 'N/A',
+      po.date || 'N/A',
+      po.supplier || 'N/A',
+      po.productName || 'N/A',
+      po.productId || 'N/A',
+      po.category || 'N/A',
+      po.quantity || '0',
+      `₱${(po.unitPrice || 0).toFixed(2)}`,
+      `₱${(po.totalValue || 0).toFixed(2)}`,
+      po.status || 'N/A',
+      po.createdBy || 'Unknown'
+    ]);
+
+    // Add table
+    doc.autoTable({
+      head: [['PO Number', 'Date', 'Supplier', 'Product Name', 'INV ID', 'Category', 'Quantity', 'Unit Price', 'Total Value', 'Status', 'Created By']],
+      body: tableData,
+      startY: 45,
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+      },
+      headStyles: {
+        fillColor: [218, 92, 115], // Pink theme color
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 250]
+      },
+      columnStyles: {
+        0: { cellWidth: 18 }, // PO Number
+        1: { cellWidth: 18 }, // Date
+        2: { cellWidth: 20 }, // Supplier
+        3: { cellWidth: 25 }, // Product Name
+        4: { cellWidth: 15 }, // INV ID
+        5: { cellWidth: 18 }, // Category
+        6: { cellWidth: 12 }, // Quantity
+        7: { cellWidth: 18 }, // Unit Price
+        8: { cellWidth: 18 }, // Total Value
+        9: { cellWidth: 15 }, // Status
+        10: { cellWidth: 20 } // Created By
+      }
+    });
+
+    // Save the PDF
+    const fileName = `purchase_orders_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+    showToast(`Purchase orders report exported successfully! (${purchaseOrders.length} orders)`, 'success');
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    showToast('Error generating PDF. Please try again.', 'error');
+  }
+}
+
+// Keep CSV export as alternative option
+function exportToCSVFile() {
   let csv = 'PO Number,Date,Supplier,Product Name,INV ID,Category,Quantity,Unit Price,Total Value,Status,Created By\n';
   
   purchaseOrders.forEach(po => {

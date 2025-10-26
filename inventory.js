@@ -693,8 +693,86 @@ function filterByCategory() {
   }
 }
 
-// Export to CSV
+// Export to PDF (default)
 function exportToCSV() {
+  exportToPDF();
+}
+
+function exportToPDF() {
+  try {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      alert('PDF library not loaded. Please refresh the page and try again.');
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Add header
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Skinship Beauty - Inventory Report', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-PH')} at ${new Date().toLocaleTimeString('en-PH')}`, 105, 30, { align: 'center' });
+    doc.text(`Total Items: ${inventoryData.length}`, 105, 37, { align: 'center' });
+    
+    // Prepare table data
+    const tableData = inventoryData.map(row => [
+      row.id || 'N/A',
+      row.name || 'N/A',
+      row.category || 'N/A',
+      row.qty || '0',
+      `₱${(row.price || 0).toFixed(2)}`,
+      `₱${(row.total || 0).toFixed(2)}`,
+      row.date || 'N/A',
+      row.status || 'N/A',
+      row.lastEditedBy || row.createdBy || 'Unknown'
+    ]);
+
+    // Add table
+    doc.autoTable({
+      head: [['Item ID', 'Item Name', 'Category', 'Qty', 'Unit Price', 'Total Value', 'Last Updated', 'Status', 'Last Edited By']],
+      body: tableData,
+      startY: 45,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [218, 92, 115], // Pink theme color
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 250]
+      },
+      columnStyles: {
+        0: { cellWidth: 15 }, // Item ID
+        1: { cellWidth: 35 }, // Item Name
+        2: { cellWidth: 20 }, // Category
+        3: { cellWidth: 12 }, // Qty
+        4: { cellWidth: 20 }, // Unit Price
+        5: { cellWidth: 20 }, // Total Value
+        6: { cellWidth: 25 }, // Last Updated
+        7: { cellWidth: 15 }, // Status
+        8: { cellWidth: 25 }  // Last Edited By
+      }
+    });
+
+    // Save the PDF
+    const fileName = `inventory_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    alert('Error generating PDF. Please try again.');
+  }
+}
+
+// Keep CSV export as alternative option
+function exportToCSVFile() {
   let csv = 'Item ID,Item Name,Category,Quantity,Unit Price,Total Value,Last Updated,Status,Last Edited By\n';
   
   inventoryData.forEach(row => {
