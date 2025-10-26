@@ -699,7 +699,7 @@
 
         <label for="password">Password</label>
         <div class="password-input-container">
-          <input id="password" name="password" type="password" placeholder="Password" required />
+        <input id="password" name="password" type="password" placeholder="Password" required />
           <button type="button" class="password-toggle-btn" onclick="togglePassword('password')">
             <i class="fa-solid fa-eye" id="password-eye"></i>
           </button>
@@ -708,7 +708,7 @@
 
         <label for="confirm_password">Confirm Password</label>
         <div class="password-input-container">
-          <input id="confirm_password" name="confirm_password" type="password" placeholder="Confirm Password" required />
+        <input id="confirm_password" name="confirm_password" type="password" placeholder="Confirm Password" required />
           <button type="button" class="password-toggle-btn" onclick="togglePassword('confirm_password')">
             <i class="fa-solid fa-eye" id="confirm_password-eye"></i>
           </button>
@@ -1058,12 +1058,12 @@
       successPanel.classList.remove('show');
       window.location.href = 'login.html';
     };
-
+    
     function showSuccessPanel() {
       successPanel.classList.add('show');
       startCountdown();
     }
-
+    
     // Registration form handling
     const registerForm = document.getElementById('registerForm');
     const passwordInput = document.getElementById('password');
@@ -1094,7 +1094,7 @@
     registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       hideNotification();
-
+      
       const data = Object.fromEntries(new FormData(registerForm));
       if (!data.first_name || !data.last_name || !data.email || !data.password || !data.confirm_password) {
         showNotification('Please fill in all required fields.');
@@ -1136,7 +1136,7 @@
           role: 'customer',
           createdAt: new Date().toISOString()
         });
-        showSuccessPanel();
+      showSuccessPanel();
         setTimeout(() => window.location.href = 'login.html', 3000);
       } catch (err) {
         let errorMessage = "Registration failed: ";

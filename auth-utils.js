@@ -165,6 +165,26 @@ window.AuthUtils = {
     },
 
     /**
+     * Update mobile menu UI based on login status
+     */
+    updateMobileMenuUI() {
+        const loginButton = document.getElementById('mobileLoginButton');
+        const profileIcon = document.getElementById('mobileProfileIcon');
+        const userNameDisplay = document.getElementById('mobileUserNameDisplay');
+
+        const user = this.getCurrentUser();
+
+        if (user) {
+            if (loginButton) loginButton.style.display = 'none';
+            if (profileIcon) profileIcon.style.display = 'flex';
+            if (userNameDisplay) userNameDisplay.textContent = user.fullName || 'User';
+        } else {
+            if (loginButton) loginButton.style.display = 'block';
+            if (profileIcon) profileIcon.style.display = 'none';
+        }
+    },
+
+    /**
      * Toggle profile dropdown
      * @param {string} dropdownId - ID of dropdown element
      */
