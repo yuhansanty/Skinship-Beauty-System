@@ -57,6 +57,164 @@ let inventoryListener = null;
 let purchaseOrderListener = null;
 let customersListener = null;
 
+// ==================== NOTIFICATION SYSTEM ====================
+
+// Notification system to replace alerts
+function showNotification(message, type = 'info', title = '', duration = 5000) {
+  const container = document.getElementById('notificationContainer');
+  if (!container) return;
+
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  
+  const icons = {
+    success: 'fa-check',
+    error: 'fa-times',
+    warning: 'fa-exclamation-triangle',
+    info: 'fa-info'
+  };
+
+  const titles = {
+    success: title || 'Success',
+    error: title || 'Error',
+    warning: title || 'Warning',
+    info: title || 'Information'
+  };
+
+  notification.innerHTML = `
+    <div class="notification-icon">
+      <i class="fas ${icons[type]}"></i>
+    </div>
+    <div class="notification-content">
+      <div class="notification-title">${titles[type]}</div>
+      <div class="notification-message">${message}</div>
+    </div>
+    <button class="notification-close" onclick="removeNotification(this.parentElement)">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="notification-progress" style="width: 100%"></div>
+  `;
+
+  container.appendChild(notification);
+
+  // Animate in
+  setTimeout(() => {
+    notification.classList.add('show');
+  }, 100);
+
+  // Auto remove after duration
+  if (duration > 0) {
+    const progressBar = notification.querySelector('.notification-progress');
+    if (progressBar) {
+      progressBar.style.transition = `width ${duration}ms linear`;
+      setTimeout(() => {
+        progressBar.style.width = '0%';
+      }, 100);
+    }
+
+    setTimeout(() => {
+      removeNotification(notification);
+    }, duration);
+  }
+
+  return notification;
+}
+
+function removeNotification(notification) {
+  if (!notification || !notification.parentElement) return;
+  
+  notification.classList.remove('show');
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.parentElement.removeChild(notification);
+    }
+  }, 300);
+}
+
+// Reference number validation
+function validateReferenceNumber(input) {
+  const value = input.value.replace(/\D/g, ''); // Remove non-digits
+  input.value = value;
+  
+  const errorElement = document.getElementById('referenceError');
+  if (!errorElement) return;
+  
+  if (value.length === 0) {
+    errorElement.classList.add('hidden');
+    input.classList.remove('border-red-300');
+    return true;
+  }
+  
+  const isValid = value.length === 6 || value.length === 9;
+  
+  if (isValid) {
+    errorElement.classList.add('hidden');
+    input.classList.remove('border-red-300');
+    input.classList.add('border-green-300');
+  } else {
+    errorElement.classList.remove('hidden');
+    input.classList.add('border-red-300');
+    input.classList.remove('border-green-300');
+  }
+  
+  return isValid;
+}
+
+// Custom confirmation system to replace confirm() calls
+function showConfirmation(message, title = 'Confirm Action') {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 max-w-md w-90 mx-4 shadow-xl">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-exclamation-triangle text-orange-600"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900">${title}</h3>
+        </div>
+        <p class="text-gray-600 mb-6 whitespace-pre-line">${message}</p>
+        <div class="flex gap-3 justify-end">
+          <button class="confirm-cancel px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
+            Cancel
+          </button>
+          <button class="confirm-ok px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">
+            Continue
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const handleConfirm = () => {
+      document.body.removeChild(modal);
+      resolve(true);
+    };
+    
+    const handleCancel = () => {
+      document.body.removeChild(modal);
+      resolve(false);
+    };
+    
+    modal.querySelector('.confirm-ok').onclick = handleConfirm;
+    modal.querySelector('.confirm-cancel').onclick = handleCancel;
+    
+    // Close on escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', handleEscape);
+        handleCancel();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  });
+}
+
+// Make functions globally available
+window.removeNotification = removeNotification;
+window.validateReferenceNumber = validateReferenceNumber;
+
 // ==================== AUTH & USER INFO ====================
 
 // Add these variables at the top of cashier.js (around line 48)
@@ -125,7 +283,7 @@ function setupSessionMonitoring(userId) {
       console.log('Session invalidated - another login detected or password changed');
       
       // Show notification before logout
-      alert('Your session has been ended because:\n• Someone else logged into this account, or\n• Your password was changed');
+      showNotification('Your session has been ended because:\n• Someone else logged into this account, or\n• Your password was changed', 'warning', 'Session Ended', 8000);
       
       // Force logout
       signOut(auth).then(() => {
@@ -621,25 +779,27 @@ function filterCustomers() {
   dropdown.classList.remove('hidden');
 }
 
-function selectCustomer(customerId) {
+async function selectCustomer(customerId) {
   const customer = confirmedCustomers.find(c => c.id === customerId);
   if (!customer) return;
   
   // Check if switching to a different customer with items in cart
   if (selectedCustomerId && selectedCustomerId !== customerId && cart.length > 0) {
-    if (!confirm('⚠️ Switching customers will clear your current cart.\n\nDo you want to continue?')) {
-      // User clicked "No" - close dropdown and keep current customer
+    const confirmed = await showConfirmation('⚠️ Switching customers will clear your current cart.\n\nDo you want to continue?', 'Switch Customer');
+    if (!confirmed) {
+      // User clicked "Cancel" - close dropdown and keep current customer
       document.getElementById('customerDropdown').classList.add('hidden');
       return;
     }
-    // User clicked "Yes" - clear cart
+    // User clicked "Continue" - clear cart
     cart = [];
     updateCart();
   }
   
   // If selecting customer for first time with items in cart
   if (!selectedCustomerId && cart.length > 0 && customerId) {
-    if (!confirm('⚠️ You have items in cart.\n\nDo you want to clear the cart and load this customer?')) {
+    const confirmed = await showConfirmation('⚠️ You have items in cart.\n\nDo you want to clear the cart and load this customer?', 'Load Customer');
+    if (!confirmed) {
       document.getElementById('customerDropdown').classList.add('hidden');
       return;
     }
@@ -667,7 +827,8 @@ function selectCustomer(customerId) {
     const serviceCount = customer.services.length;
     const serviceText = serviceCount === 1 ? 'service' : 'services';
     
-    if (confirm(`Add ${serviceCount} ${serviceText} from this appointment to cart?`)) {
+    const confirmed = await showConfirmation(`Add ${serviceCount} ${serviceText} from this appointment to cart?`, 'Add Services');
+    if (confirmed) {
       
       let addedCount = 0;
       let notFoundServices = [];
@@ -730,9 +891,9 @@ function selectCustomer(customerId) {
           message += '\n\nThese services need to be added manually.';
         }
         
-        alert(message);
+        showNotification(message, 'success', 'Services Added');
       } else {
-        alert('⚠ No services could be added to cart.\n\nPlease add services manually.');
+        showNotification('No services could be added to cart.\n\nPlease add services manually.', 'warning', 'No Services Added');
       }
     }
   }
@@ -874,7 +1035,7 @@ async function confirmLogout() {
       confirmBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Logout';
     }
     
-    alert("An error occurred during logout. Please try again.");
+    showNotification('An error occurred during logout. Please try again.', 'error', 'Logout Error');
     await signOut(auth);
     window.location.href = "index.html";
   }
@@ -1119,7 +1280,7 @@ function renderServices(filteredItems = servicesData) {
       div.onclick = () => addToCart(item);
     } else {
       div.onclick = () => {
-        alert(`"${item.name}" is out of stock and cannot be added to cart!`);
+        showNotification(`"${item.name}" is out of stock and cannot be added to cart!`, 'warning', 'Out of Stock');
       };
     }
     
@@ -1181,13 +1342,13 @@ function addToCart(item) {
     
     // Check if we have enough stock to add one more
     if (currentCartQty >= item.qty) {
-      alert(`Cannot add more "${item.name}"! Only ${item.qty} available in stock.`);
+      showNotification(`Cannot add more "${item.name}"! Only ${item.qty} available in stock.`, 'warning', 'Stock Limit Reached');
       return;
     }
     
     // Check if product is out of stock
     if (item.qty <= 0) {
-      alert(`"${item.name}" is out of stock!`);
+      showNotification(`"${item.name}" is out of stock!`, 'error', 'Out of Stock');
       return;
     }
   }
@@ -1343,32 +1504,42 @@ function checkout() {
   const referenceNumber = document.getElementById('referenceNumber')?.value.trim();
   
   if (!customerName) {
-    alert('Customer name is required');
+    showNotification('Customer name is required', 'error', 'Missing Information');
     document.getElementById('customerName')?.focus();
     return;
   }
   
   if (customerEmail && !customerEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-    alert('Please enter a valid email address');
+    showNotification('Please enter a valid email address', 'error', 'Invalid Email');
     return;
   }
   
   if (customerPhone) {
     const normalized = normalizePhoneNumber(customerPhone);
     if (!normalized.startsWith('09') || normalized.length !== 11) {
-      alert('Mobile number must be valid (09XXXXXXXXX, +639XXXXXXXXX, or 639XXXXXXXXX)');
+      showNotification('Mobile number must be valid (09XXXXXXXXX, +639XXXXXXXXX, or 639XXXXXXXXX)', 'error', 'Invalid Phone Number');
       return;
     }
   }
   
   if (payment < total) {
-    alert(`Insufficient payment! Total: ₱${total.toFixed(2)}`);
+    showNotification(`Insufficient payment! Total: ₱${total.toFixed(2)}`, 'error', 'Insufficient Payment');
     return;
   }
   
   if (selectedPaymentMethod === 'check' && !referenceNumber) {
-    alert('Please enter reference or check number');
+    showNotification('Please enter reference or check number', 'error', 'Missing Reference Number');
     return;
+  }
+  
+  // Validate reference number format
+  if (selectedPaymentMethod === 'check' && referenceNumber) {
+    const digits = referenceNumber.replace(/\D/g, '');
+    if (digits.length !== 6 && digits.length !== 9) {
+      showNotification('Reference number must be exactly 6 or 9 digits', 'error', 'Invalid Reference Number');
+      document.getElementById('referenceNumber')?.focus();
+      return;
+    }
   }
   
   generateReceipt();
@@ -1732,7 +1903,7 @@ async function generateReceipt() {
         }
       }
       alertMessage += '\n✓ Sale recorded in reports';
-      alert(alertMessage);
+      showNotification(alertMessage, 'success', 'Transaction Complete', 8000);
       clearCart();
       
       // Refresh product view if showing products
@@ -1752,7 +1923,7 @@ async function generateReceipt() {
       loadingModal.classList.add('hidden');
     }
     
-    alert('Error generating receipt: ' + error.message + '\n\nPlease check your internet connection and try again.');
+    showNotification('Error generating receipt: ' + error.message + '\n\nPlease check your internet connection and try again.', 'error', 'Receipt Error', 8000);
   }
 }
 
