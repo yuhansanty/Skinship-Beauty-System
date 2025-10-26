@@ -11,7 +11,7 @@
     .sidebar-btn:hover { background:#da5c73;color:white;transform:scale(1.1) }
     .sidebar-btn.active { background:#da5c73;color:white }
     
-.sidebar-bubble {
+    .sidebar-bubble {
       position: absolute;
       top: -4px;
       right: -4px;
@@ -617,8 +617,8 @@
             <form id="registerForm">
               <!-- Step 1: Personal Information -->
               <div id="step1" class="form-step">
-                <div class="grid-2">
-                  <div class="input-group">
+              <div class="grid-2">
+                <div class="input-group">
                     <label><i class="fa-solid fa-user mr-2"></i>First Name *</label>
                     <input type="text" id="firstName" class="input-field" placeholder="Enter first name" required>
                   </div>
@@ -626,52 +626,52 @@
                   <div class="input-group">
                     <label><i class="fa-solid fa-user mr-2"></i>Last Name *</label>
                     <input type="text" id="lastName" class="input-field" placeholder="Enter last name" required>
-                  </div>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-at mr-2"></i>Username *</label>
-                    <input type="text" id="username" class="input-field" placeholder="Enter username" required>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-at mr-2"></i>Username *</label>
+                  <input type="text" id="username" class="input-field" placeholder="Enter username" required>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-phone mr-2"></i>Mobile Number *</label>
-                    <input type="text" id="mobile" class="input-field" placeholder="09XXXXXXXXX" maxlength="11" required>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-phone mr-2"></i>Mobile Number *</label>
+                  <input type="text" id="mobile" class="input-field" placeholder="09XXXXXXXXX" maxlength="11" required>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-venus-mars mr-2"></i>Gender *</label>
-                    <select id="gender" class="input-field" required>
-                      <option value="" disabled selected>Select Gender</option>
-                      <option value="female">Female</option>
-                      <option value="male">Male</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-venus-mars mr-2"></i>Gender *</label>
+                  <select id="gender" class="input-field" required>
+                    <option value="" disabled selected>Select Gender</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-envelope mr-2"></i>Email *</label>
-                    <input type="email" id="email" class="input-field" placeholder="email@example.com" required>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-envelope mr-2"></i>Email *</label>
+                  <input type="email" id="email" class="input-field" placeholder="email@example.com" required>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-user-tie mr-2"></i>Role *</label>
-                    <select id="role" class="input-field" required>
-                      <option value="" disabled selected>Select Role</option>
-                      <option value="admin">Admin</option>
-                      <option value="staff">Staff</option>
-                    </select>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-user-tie mr-2"></i>Role *</label>
+                  <select id="role" class="input-field" required>
+                    <option value="" disabled selected>Select Role</option>
+                    <option value="admin">Admin</option>
+                    <option value="staff">Staff</option>
+                  </select>
+                </div>
 
-                  <div class="input-group">
-                    <label><i class="fa-solid fa-lock mr-2"></i>Password *</label>
-                    <input type="password" id="password" class="input-field" placeholder="Enter password" required>
-                  </div>
+                <div class="input-group">
+                  <label><i class="fa-solid fa-lock mr-2"></i>Password *</label>
+                  <input type="password" id="password" class="input-field" placeholder="Enter password" required>
+                </div>
 
                   <div class="input-group" style="grid-column: 1 / -1;">
-                    <label><i class="fa-solid fa-lock mr-2"></i>Confirm Password *</label>
-                    <input type="password" id="confirmPassword" class="input-field" placeholder="Confirm password" required>
-                  </div>
+                  <label><i class="fa-solid fa-lock mr-2"></i>Confirm Password *</label>
+                  <input type="password" id="confirmPassword" class="input-field" placeholder="Confirm password" required>
                 </div>
+              </div>
 
                 <button type="button" class="btn-primary mt-4" onclick="goToStep2()">
                   <i class="fa-solid fa-arrow-right mr-2"></i>Next
@@ -745,8 +745,8 @@
                     <i class="fa-solid fa-arrow-left mr-2"></i>Back
                   </button>
                   <button type="submit" class="btn-primary">
-                    <i class="fa-solid fa-user-plus mr-2"></i>Create Account
-                  </button>
+                <i class="fa-solid fa-user-plus mr-2"></i>Create Account
+              </button>
                 </div>
               </div>
             </form>
@@ -1400,9 +1400,9 @@ import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, sendPas
       appId: "1:963752770497:web:8911cc6a375acdbdcc8d40"
     };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
 // Make auth and signInWithEmailAndPassword global
 window.auth = auth;
@@ -1414,80 +1414,80 @@ window.signInWithEmailAndPassword = signInWithEmailAndPassword;
     let purchaseOrderListener = null;
     let sessionMonitor = null;
 
-    function setupSessionMonitoring(userId) {
+function setupSessionMonitoring(userId) {
       if (sessionMonitor) sessionMonitor();
-      
-      const userRef = doc(db, "users", userId);
-      const storedSessionId = sessionStorage.getItem('sessionId');
-      
-      if (!storedSessionId) {
-        console.warn('No session ID found, logging out...');
-        auth.signOut();
-        window.location.href = 'index.html';
-        return;
-      }
-      
-      sessionMonitor = onSnapshot(userRef, (snapshot) => {
-        if (!snapshot.exists()) {
-          console.warn('User document no longer exists');
-          auth.signOut();
-          window.location.href = 'index.html';
-          return;
-        }
-        
-        const data = snapshot.data();
-        const currentSessionId = data.currentSessionId;
-        
-        if (currentSessionId && currentSessionId !== storedSessionId) {
-          console.log('Session invalidated - another login detected or password changed');
-          
-          showToast('Your session has been ended because someone else logged into this account or your password was changed', 'warning', 'Session Ended');
-          
-          setTimeout(() => {
-            auth.signOut().then(() => {
-              window.location.href = 'index.html';
-            });
-          }, 2000);
-        }
-      }, (error) => {
-        console.error('Session monitoring error:', error);
-      });
+  
+  const userRef = doc(db, "users", userId);
+  const storedSessionId = sessionStorage.getItem('sessionId');
+  
+  if (!storedSessionId) {
+    console.warn('No session ID found, logging out...');
+    auth.signOut();
+    window.location.href = 'index.html';
+    return;
+  }
+  
+  sessionMonitor = onSnapshot(userRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      console.warn('User document no longer exists');
+      auth.signOut();
+      window.location.href = 'index.html';
+      return;
     }
+    
+    const data = snapshot.data();
+    const currentSessionId = data.currentSessionId;
+    
+    if (currentSessionId && currentSessionId !== storedSessionId) {
+      console.log('Session invalidated - another login detected or password changed');
+      
+          showToast('Your session has been ended because someone else logged into this account or your password was changed', 'warning', 'Session Ended');
+      
+          setTimeout(() => {
+      auth.signOut().then(() => {
+        window.location.href = 'index.html';
+      });
+          }, 2000);
+    }
+  }, (error) => {
+    console.error('Session monitoring error:', error);
+  });
+}
 
-    onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        window.location.href = "index.html";
-        return;
-      }
+onAuthStateChanged(auth, async (currentUser) => {
+  if (!currentUser) {
+    window.location.href = "index.html";
+    return;
+  }
 
-      try {
-        const userRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          window.location.href = "index.html";
-          return;
-        }
-        const currentRole = userSnap.data().role;
-        if (currentRole !== "admin") {
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      window.location.href = "index.html";
+      return;
+    }
+    const currentRole = userSnap.data().role;
+    if (currentRole !== "admin") {
           showToast('Staff cannot access Registration page', 'error', 'Access Denied');
           setTimeout(() => {
-            window.location.href = "dashboard.html";
+      window.location.href = "dashboard.html";
           }, 1500);
-          return;
-        }
-        
-        setupSessionMonitoring(currentUser.uid);
-        monitorInventory();
-        monitorPurchaseOrders();
-      } catch (err) {
-        console.error("Auth check failed:", err.message);
-      }
-    });
+      return;
+    }
+    
+    setupSessionMonitoring(currentUser.uid);
+    monitorInventory();
+    monitorPurchaseOrders();
+  } catch (err) {
+    console.error("Auth check failed:", err.message);
+  }
+});
 
-    function monitorInventory() {
-      if (inventoryListener) {
-        inventoryListener();
-      }
+function monitorInventory() {
+  if (inventoryListener) {
+    inventoryListener();
+  }
 
       const inventoryRef = collection(db, 'inventory');
       const inventoryQuery = query(inventoryRef, limit(100));
@@ -1514,7 +1514,7 @@ window.signInWithEmailAndPassword = signInWithEmailAndPassword;
         updateInventoryBubble(noStockCount, lowStockCount, overstockCount);
         
       }, (error) => {
-        console.error('Error monitoring inventory:', error);
+      console.error('Error monitoring inventory:', error);
       });
     }
 
@@ -1548,7 +1548,7 @@ window.signInWithEmailAndPassword = signInWithEmailAndPassword;
       }
     }
 
-function monitorPurchaseOrders() {
+    function monitorPurchaseOrders() {
       if (purchaseOrderListener) {
         purchaseOrderListener();
       }
@@ -1557,10 +1557,10 @@ function monitorPurchaseOrders() {
       const poQuery = query(poRef, where('status', '==', 'pending'), limit(100));
       
       purchaseOrderListener = onSnapshot(poQuery, (snapshot) => {
-        const newOrderCount = snapshot.size;
-        updatePurchaseOrderBubble(newOrderCount);
+          const newOrderCount = snapshot.size;
+          updatePurchaseOrderBubble(newOrderCount);
       }, (error) => {
-        console.error('Error monitoring purchase orders:', error);
+          console.error('Error monitoring purchase orders:', error);
       });
     }
 
@@ -1626,26 +1626,26 @@ function monitorPurchaseOrders() {
 
     checkResetCooldown();
 
-// Create Account Form
-document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
+    // Create Account Form
+    document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
   
   const firstName = document.getElementById("firstName").value.trim();
   const lastName = document.getElementById("lastName").value.trim();
   const fullName = `${firstName} ${lastName}`;
-  const username = document.getElementById("username").value.trim();
-  const mobile = document.getElementById("mobile").value.trim();
-  const gender = document.getElementById("gender").value;
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const role = document.getElementById("role").value;
+      const username = document.getElementById("username").value.trim();
+      const mobile = document.getElementById("mobile").value.trim();
+      const gender = document.getElementById("gender").value;
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const role = document.getElementById("role").value;
   let schedule = document.getElementById("selectedSchedule").value;
 
   // Validate schedule only for staff
   if (role === 'staff' && !schedule) {
     showToast('Please select a preferred schedule', 'warning', 'Schedule Required');
-    return;
-  }
+        return;
+      }
 
   // For admin, set schedule to "No schedule"
   if (role === 'admin') {
@@ -1662,87 +1662,87 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
 
   const originalBtnText = submitBtn.innerHTML;
 
-  try {
-    // Check for duplicates
-    const usernameQuery = query(collection(db, "users"), where("username", "==", username));
-    const usernameSnapshot = await getDocs(usernameQuery);
-    if (!usernameSnapshot.empty) {
+      try {
+        // Check for duplicates
+        const usernameQuery = query(collection(db, "users"), where("username", "==", username));
+        const usernameSnapshot = await getDocs(usernameQuery);
+        if (!usernameSnapshot.empty) {
       showToast('Username already taken', 'error', 'Duplicate Entry');
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;
-      return;
-    }
+          return;
+        }
 
-    const fullNameQuery = query(collection(db, "users"), where("fullName", "==", fullName));
-    const fullNameSnapshot = await getDocs(fullNameQuery);
-    if (!fullNameSnapshot.empty) {
+        const fullNameQuery = query(collection(db, "users"), where("fullName", "==", fullName));
+        const fullNameSnapshot = await getDocs(fullNameQuery);
+        if (!fullNameSnapshot.empty) {
       showToast('Full name already exists in the system', 'error', 'Duplicate Entry');
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;
-      return;
-    }
+          return;
+        }
 
-    const mobileQuery = query(collection(db, "users"), where("mobile", "==", mobile));
-    const mobileSnapshot = await getDocs(mobileQuery);
-    if (!mobileSnapshot.empty) {
+        const mobileQuery = query(collection(db, "users"), where("mobile", "==", mobile));
+        const mobileSnapshot = await getDocs(mobileQuery);
+        if (!mobileSnapshot.empty) {
       showToast('Mobile number already registered', 'error', 'Duplicate Entry');
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;
-      return;
-    }
+          return;
+        }
 
-    const emailQuery = query(collection(db, "users"), where("email", "==", email));
-    const emailSnapshot = await getDocs(emailQuery);
-    if (!emailSnapshot.empty) {
+        const emailQuery = query(collection(db, "users"), where("email", "==", email));
+        const emailSnapshot = await getDocs(emailQuery);
+        if (!emailSnapshot.empty) {
       showToast('Email already registered', 'error', 'Duplicate Entry');
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;
-      return;
-    }
+          return;
+        }
 
-    const adminUser = auth.currentUser;
-    if (!adminUser) {
+        const adminUser = auth.currentUser;
+        if (!adminUser) {
       showToast('Admin session expired. Please log in again.', 'error', 'Session Expired');
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;
-      return;
-    }
+          return;
+        }
 
     const tempApp = initializeApp(firebaseConfig, "TempApp" + Date.now());
-    const tempAuth = getAuth(tempApp);
+        const tempAuth = getAuth(tempApp);
 
-    const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
-    const newUser = userCredential.user;
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, email, password);
+        const newUser = userCredential.user;
 
-    await sendEmailVerification(newUser);
+        await sendEmailVerification(newUser);
 
-    const initialSessionId = `session_${newUser.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const initialSessionId = `session_${newUser.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    await setDoc(doc(db, "users", newUser.uid), {
+await setDoc(doc(db, "users", newUser.uid), {
       firstName,
       lastName,
-      fullName,
-      username,
-      mobile,
-      gender,
-      email,
-      role,
+  fullName,
+  username,
+  mobile,
+  gender,
+  email,
+  role,
       schedule,
-      availability: false,
-      emailVerified: false,
+  availability: false,
+  emailVerified: false,
       archived: false,
-      createdAt: new Date().toISOString(),
-      currentSessionId: initialSessionId,
-      lastLogin: null
-    });
+  createdAt: new Date().toISOString(),
+  currentSessionId: initialSessionId,
+  lastLogin: null
+});
 
-    await tempAuth.signOut();
+        await tempAuth.signOut();
 
     const accountType = role === 'admin' ? 'Admin' : 'Staff';
     showToast(`${accountType} account created successfully! Verification email sent.`, 'success', 'Account Created');
     
     // Reset form
-    document.getElementById("registerForm").reset();
+        document.getElementById("registerForm").reset();
     goToStep1();
     document.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
 
@@ -1750,7 +1750,7 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
     submitBtn.disabled = false;
     submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right mr-2"></i>Next';
 
-  } catch (err) {
+      } catch (err) {
     console.error('Registration error:', err);
     showToast(err.message, 'error', 'Registration Failed');
     
@@ -1771,8 +1771,8 @@ document.getElementById("registerForm")?.addEventListener("submit", async (e) =>
         
         if (snapshot.empty) {
           archivedList.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fa-solid fa-inbox mr-2"></i>No archived accounts</div>';
-          return;
-        }
+        return;
+      }
         
         archivedList.innerHTML = '';
         const now = new Date();
@@ -1939,7 +1939,7 @@ window.archiveAccount = async function(userId) {
         await updateDoc(doc(db, "users", userId), {
           archived: true,
           archivedAt: new Date().toISOString(),
-          currentSessionId: newSessionId,
+        currentSessionId: newSessionId,
           availability: false
         });
         
@@ -1975,7 +1975,7 @@ try {
   
   showToast('Password reset email sent! Check your inbox. Click the link in the email to change your password.', 'success', 'Reset Link Sent');
   document.getElementById("changePassForm").reset();
-      
+        
         const cooldownEnd = Date.now() + (COOLDOWN_TIME * 1000);
         localStorage.setItem('passwordResetCooldown', cooldownEnd.toString());
         startResetCooldown(COOLDOWN_TIME);
@@ -2001,11 +2001,11 @@ try {
       }
     });
 
-    window.addEventListener('beforeunload', () => {
-      if (inventoryListener) inventoryListener();
-      if (purchaseOrderListener) purchaseOrderListener();
-      if (sessionMonitor) sessionMonitor();
-    });
+window.addEventListener('beforeunload', () => {
+  if (inventoryListener) inventoryListener();
+  if (purchaseOrderListener) purchaseOrderListener();
+  if (sessionMonitor) sessionMonitor();
+});
 
   </script>
   

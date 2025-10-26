@@ -6,6 +6,7 @@
   <title>Skinship Beauty Register</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <style>
     body {
       background-color: #f7d4d0;
@@ -735,9 +736,10 @@
   <div id="successPanel" class="success-panel">
     <div class="success-content">
       <h2 class="success-title">🎉 SUCCESS!</h2>
-      <p class="success-message">Your account has been created successfully!</p>
-      <button id="goHomeBtn" class="success-btn">Go to Home</button>
-      <p class="countdown-text" id="countdownText">You will be automatically redirected in 30 seconds</p>
+      <p class="success-message">Successfully Signed Up!</p>
+      <p class="success-message">Please check your email to verify your account.</p>
+      <button id="goHomeBtn" class="success-btn">Go to Login</button>
+      <p class="countdown-text" id="countdownText">You will be automatically redirected in 3 seconds</p>
     </div>
   </div>
   
@@ -992,12 +994,30 @@
       logoTooltip.classList.remove('show');
     });
   </script>
-  <script>
-    // Password toggle function
+  
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2Yh7L4Wl9XRlOgxnzZyo8xxds6a02UJY",
+      authDomain: "skinship-1ff4b.firebaseapp.com",
+      projectId: "skinship-1ff4b",
+      storageBucket: "skinship-1ff4b.firebasestorage.app",
+      messagingSenderId: "963752770497",
+      appId: "1:963752770497:web:8911cc6a375acdbdcc8d40"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Show/hide password toggle
     function togglePassword(fieldId) {
       const field = document.getElementById(fieldId);
       const eyeIcon = document.getElementById(fieldId + '-eye');
-      
+      if (!field || !eyeIcon) return;
       if (field.type === 'password') {
         field.type = 'text';
         eyeIcon.classList.remove('fa-eye');
@@ -1008,256 +1028,129 @@
         eyeIcon.classList.add('fa-eye');
       }
     }
-    
-    // Password validation for registration
-    const registerForm = document.getElementById('registerForm');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirm_password');
-
-    // Show error under password field if needed
-    function setPasswordError(msg) {
-      let err = document.getElementById('passwordError');
-      if (!err) {
-        err = document.createElement('div');
-        err.id = 'passwordError';
-        err.style.color = '#be123c';
-        err.style.fontSize = '0.92rem';
-        err.style.margin = '5px 0 0 2px';
-        passwordInput.parentNode.appendChild(err);
-      }
-      err.textContent = msg;
-    }
-    function clearPasswordError() {
-      const err = document.getElementById('passwordError');
-      if (err) err.remove();
-    }
-
-    registerForm.addEventListener('submit', function(e) {
-      clearPasswordError();
-      const password = passwordInput.value;
-      const hasMinLength = password.length >= 8;
-      const hasNumber = /\d/.test(password);
-      if (!hasMinLength || !hasNumber) {
-        setPasswordError('Password must be at least 8 characters and include at least 1 number.');
-        passwordInput.focus();
+    // Attach toggle handlers in JS (not inline)
+    document.querySelectorAll('.password-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
         e.preventDefault();
-        return false;
-      }
-      // You could also validate confirmPassword equality here if desired
+        const forInput = btn.previousElementSibling.id;
+        togglePassword(forInput);
+      });
     });
-    
-    // Registration form handling (reusing existing registerForm variable)
+
+    // Success panel functions (remains the same, but be sure IDs are present in DOM)
     const successPanel = document.getElementById('successPanel');
     const goHomeBtn = document.getElementById('goHomeBtn');
     const countdownText = document.getElementById('countdownText');
-    const notificationPanel = document.getElementById('notificationPanel');
-    const notificationMessage = document.getElementById('notificationMessage');
-    
     let countdownTimer = null;
-    let countdownSeconds = 30;
-    let notificationTimer = null;
-    
-    // Validation functions
-    function isValidEmail(email) {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      return emailRegex.test(email);
-    }
-    
-    function isValidPhilippinePhone(phone) {
-      // Remove all non-digit characters
-      const cleanPhone = phone.replace(/\D/g, '');
-      
-      // Check if it starts with 63 (Philippines country code)
-      if (cleanPhone.startsWith('63')) {
-        // Should be 12 digits total (63 + 10 digits)
-        return cleanPhone.length === 12 && cleanPhone.charAt(2) === '9';
-      }
-      
-      // Check if it starts with 09 (local format)
-      if (cleanPhone.startsWith('09')) {
-        // Should be 11 digits total
-        return cleanPhone.length === 11;
-      }
-      
-      return false;
-    }
-    
-    function showNotification(message) {
-      notificationMessage.textContent = message;
-      notificationPanel.classList.add('show');
-      
-      // Clear any existing timer
-      if (notificationTimer) {
-        clearTimeout(notificationTimer);
-      }
-      
-      // Auto-hide after 5 seconds
-      notificationTimer = setTimeout(() => {
-        notificationPanel.classList.remove('show');
-      }, 5000);
-    }
-    
-    function hideNotification() {
-      notificationPanel.classList.remove('show');
-      if (notificationTimer) {
-        clearTimeout(notificationTimer);
-      }
-    }
-    
     function startCountdown() {
-      countdownSeconds = 30;
-      updateCountdownDisplay();
-      
+      let sec = 3;
+      countdownText.textContent = `You will be automatically redirected in ${sec} seconds`;
       countdownTimer = setInterval(() => {
-        countdownSeconds--;
-        updateCountdownDisplay();
-        
-        if (countdownSeconds <= 0) {
+        sec--;
+        countdownText.textContent = `You will be automatically redirected in ${sec} seconds`;
+        if (sec <= 0) {
           clearInterval(countdownTimer);
-          window.location.href = 'index.html';
+          window.location.href = 'login.html';
         }
       }, 1000);
     }
-    
-    function updateCountdownDisplay() {
-      countdownText.textContent = `You will be automatically redirected in ${countdownSeconds} seconds`;
-    }
-    
+    goHomeBtn.onclick = () => {
+      successPanel.classList.remove('show');
+      window.location.href = 'login.html';
+    };
+
     function showSuccessPanel() {
       successPanel.classList.add('show');
       startCountdown();
     }
-    
-    function hideSuccessPanel() {
-      successPanel.classList.remove('show');
-      if (countdownTimer) {
-        clearInterval(countdownTimer);
-      }
+
+    // Registration form handling
+    const registerForm = document.getElementById('registerForm');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const submitBtn = document.querySelector('button[type="submit"].register-btn');
+
+    // Validation utilities
+    const notificationPanel = document.getElementById('notificationPanel');
+    const notificationMessage = document.getElementById('notificationMessage');
+    let notificationTimer = null;
+    function showNotification(msg) {
+      notificationMessage.textContent = msg;
+      notificationPanel.classList.add('show');
+      if (notificationTimer) clearTimeout(notificationTimer);
+      notificationTimer = setTimeout(() => notificationPanel.classList.remove('show'), 5000);
     }
-    
-    goHomeBtn.addEventListener('click', () => {
-      hideSuccessPanel();
-      window.location.href = 'index.html';
-    });
-    
-    // Real-time validation for input fields
-    const emailInput = document.getElementById('email');
-    const phoneInput = document.getElementById('phone_number');
-    const firstNameInput = document.getElementById('first_name');
-    const middleInitialInput = document.getElementById('middle_initial');
-    const lastNameInput = document.getElementById('last_name');
-    
-    // Email validation on blur
-    emailInput.addEventListener('blur', function() {
-      if (this.value && !isValidEmail(this.value)) {
-        showNotification('Please enter a valid email address.');
-      } else {
-        hideNotification();
-      }
-    });
-    
-    // Phone validation on blur
-    phoneInput.addEventListener('blur', function() {
-      if (this.value && !isValidPhilippinePhone(this.value)) {
-        showNotification('Please enter a valid Philippine phone number (e.g., +63 9XX XXX XXXX or 09XX XXX XXXX).');
-      } else {
-        hideNotification();
-      }
-    });
-    
-    // Character limit validation for names
-    firstNameInput.addEventListener('input', function() {
-      if (this.value.length > 20) {
-        this.value = this.value.substring(0, 20);
-        showNotification('First name must not exceed 20 characters.');
-      } else {
-        hideNotification();
-      }
-    });
-    
-    middleInitialInput.addEventListener('input', function() {
-      if (this.value.length > 2) {
-        this.value = this.value.substring(0, 2);
-        showNotification('Middle initial must not exceed 2 characters.');
-      } else {
-        hideNotification();
-      }
-    });
-    
-    lastNameInput.addEventListener('input', function() {
-      if (this.value.length > 20) {
-        this.value = this.value.substring(0, 20);
-        showNotification('Last name must not exceed 20 characters.');
-      } else {
-        hideNotification();
-      }
-    });
-    
-    registerForm.addEventListener('submit', function(e) {
+    function hideNotification() { notificationPanel.classList.remove('show'); if (notificationTimer) clearTimeout(notificationTimer); }
+    function isValidEmail(email) {
+      return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+    }
+    function isValidPhilippinePhone(phone) {
+      const clean = phone.replace(/\D/g, '');
+      if (clean.startsWith('63')) return clean.length === 12 && clean.charAt(2) === '9';
+      if (clean.startsWith('09')) return clean.length === 11;
+      return false;
+    }
+
+    registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-      
-      // Hide any existing notifications
       hideNotification();
-      
-      // Get form data
-      const formData = new FormData(registerForm);
-      const data = Object.fromEntries(formData);
-      
-      // Basic validation
+
+      const data = Object.fromEntries(new FormData(registerForm));
       if (!data.first_name || !data.last_name || !data.email || !data.password || !data.confirm_password) {
         showNotification('Please fill in all required fields.');
         return;
       }
-      
-      // Character limit validation
-      if (data.first_name.length > 20) {
-        showNotification('First name must not exceed 20 characters.');
-        return;
-      }
-      
-      if (data.middle_initial && data.middle_initial.length > 2) {
-        showNotification('Middle initial must not exceed 2 characters.');
-        return;
-      }
-      
-      if (data.last_name.length > 20) {
-        showNotification('Last name must not exceed 20 characters.');
-        return;
-      }
-      
-      // Email validation
       if (!isValidEmail(data.email)) {
         showNotification('Please enter a valid email address.');
         return;
       }
-      
-      // Phone number validation
       if (!isValidPhilippinePhone(data.phone_number)) {
         showNotification('Please enter a valid Philippine phone number (e.g., +63 9XX XXX XXXX or 09XX XXX XXXX).');
         return;
       }
-      
-      // Password validation
       if (data.password !== data.confirm_password) {
         showNotification('Passwords do not match.');
         return;
       }
-      
       if (data.password.length < 8 || !/\d/.test(data.password)) {
         showNotification('Password must be at least 8 characters and include at least 1 number.');
         return;
       }
-      
       if (!data.terms) {
         showNotification('Please agree to the Terms & Conditions and Privacy Policy.');
         return;
       }
-      
-      // Simulate successful registration
-      console.log('Registration data:', data);
-      
-      // Show success panel
-      showSuccessPanel();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "CREATING ACCOUNT...";
+      try {
+        // Firebase registration & Firestore user storing
+        const userCred = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        await sendEmailVerification(userCred.user);
+        await setDoc(doc(db, "users", userCred.user.uid), {
+          uid: userCred.user.uid,
+          firstName: data.first_name,
+          middleInitial: data.middle_initial || '',
+          lastName: data.last_name,
+          email: data.email,
+          phoneNumber: data.phone_number,
+          role: 'customer',
+          createdAt: new Date().toISOString()
+        });
+        showSuccessPanel();
+        setTimeout(() => window.location.href = 'login.html', 3000);
+      } catch (err) {
+        let errorMessage = "Registration failed: ";
+        switch (err.code) {
+          case 'auth/email-already-in-use': errorMessage += "An account with this email already exists."; break;
+          case 'auth/invalid-email': errorMessage += "Invalid email address."; break;
+          case 'auth/weak-password': errorMessage += "Password is too weak."; break;
+          case 'auth/operation-not-allowed': errorMessage += "Email/password accounts are not enabled."; break;
+          default: errorMessage += (err.message || err.code || 'Unknown error.');
+        }
+        showNotification(errorMessage);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "SIGN UP";
+      }
     });
   </script>
   

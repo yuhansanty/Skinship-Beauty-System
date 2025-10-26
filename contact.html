@@ -446,417 +446,222 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-  
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script>
-    // Initialize EmailJS with your public key
-    (function(){
-      emailjs.init("05pESgFVX7W6C_9dz");
-    })();
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import flatpickr from "https://cdn.jsdelivr.net/npm/flatpickr";
 
-    // Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyD2Yh7L4Wl9XRlOgxnzZyo8xxds6a02UJY",
-      authDomain: "skinship-1ff4b.firebaseapp.com",
-      projectId: "skinship-1ff4b",
-      storageBucket: "skinship-1ff4b.appspot.com",
-      messagingSenderId: "963752770497",
-      appId: "1:963752770497:web:8911cc6a375acdbdcc8d40"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD2Yh7L4Wl9XRlOgxnzZyo8xxds6a02UJY",
+  authDomain: "skinship-1ff4b.firebaseapp.com",
+  projectId: "skinship-1ff4b",
+  storageBucket: "skinship-1ff4b.appspot.com",
+  messagingSenderId: "963752770497",
+  appId: "1:963752770497:web:8911cc6a375acdbdcc8d40"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    // Initialize Flatpickr with custom date/time format
-flatpickr("#appointment", {
-  enableTime: true,
-  dateFormat: "Y-m-d H:i",
-  time_24hr: false,
-  minDate: "today",
-  minTime: "10:00",
-  maxTime: "21:00",
-  disable: [
-    function(date) {
-      return date.getDay() === 3;
-    }
-  ]
+// DOM elements
+const nameInput = document.getElementById('name');
+const emailInput = document.getElementById('email');
+const phoneInput = document.getElementById('phone');
+const serviceSection = document.getElementById('serviceSelection');
+const serviceDropdown = document.getElementById('serviceDropdown');
+const staffSelect = document.getElementById('staff');
+const appointmentInput = document.getElementById('appointment');
+const noteInput = document.getElementById('message');
+const submitBtn = document.querySelector('.contact-form .btn');
+const form = document.querySelector('.contact-form');
+const successModal = document.getElementById('successModal');
+const countdownMsg = document.getElementById('countdown');
+let loggedInUser = null;
+
+// Step control (hide at start)
+const staffGroup = staffSelect.closest('.form-group');
+const appointmentGroup = appointmentInput.closest('.form-group');
+const noteGroup = noteInput.closest('.form-group');
+const timeSlotDivId = 'timeSlotStep';
+function setStep(step) {
+  // 0: only user/service, 1: staff, 2: date, 3: time, 4: note/submit
+  staffGroup.style.display = (step>=1)?'block':'none';
+  appointmentGroup.style.display = (step>=2)?'block':'none';
+  const slotDiv = document.getElementById(timeSlotDivId); if(slotDiv) slotDiv.style.display = (step>=3)?'block':'none';
+  noteGroup.style.display = (step>=4)?'block':'none';
+  submitBtn.style.display = (step>=4)?'block':'none';
+}
+setStep(0); // On load: only show user info + service
+
+// 1. Auth and User Prefill
+function redirectToLogin() { window.location.href = 'login.html'; }
+function lockUserFields() {
+  nameInput.readOnly = true;
+  emailInput.readOnly = true;
+  phoneInput.readOnly = true;
+}
+onAuthStateChanged(auth, async user => {
+  if (!user) return redirectToLogin();
+  loggedInUser = user;
+  let userDoc = null, phone = '';
+  try {
+    userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists()) phone = userDoc.data().phoneNumber || user.phoneNumber || '';
+    else phone = user.phoneNumber || '';
+  } catch (e) { phone = user.phoneNumber || ''; }
+  nameInput.value = (user.displayName || (userDoc?.data()?.firstName||'') + ' ' + (userDoc?.data()?.lastName||'')).trim();
+  emailInput.value = user.email || '';
+  phoneInput.value = phone;
+  lockUserFields();
+  console.log('[Booking] User info loaded:', nameInput.value, emailInput.value, phoneInput.value);
 });
-    // Service selection logic
-    let selectedServicesArray = [];
-    const serviceSelection = document.getElementById('serviceSelection');
-    const serviceDropdown = document.getElementById('serviceDropdown');
-    const selectedServicesContainer = document.getElementById('selectedServices');
 
-    serviceSelection.addEventListener('click', function(e) {
-      e.stopPropagation();
-      serviceDropdown.classList.toggle('show');
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!serviceSelection.contains(e.target) && !serviceDropdown.contains(e.target)) {
-        serviceDropdown.classList.remove('show');
-      }
-    });
-
-    function updateSelectedServices() {
-      if (selectedServicesArray.length === 0) {
-        serviceSelection.innerHTML = '<span class="service-selection-placeholder">Select services...</span>';
-        selectedServicesContainer.innerHTML = '';
-      } else {
-        serviceSelection.innerHTML = `<span>${selectedServicesArray.length} service(s) selected</span>`;
-        
-        selectedServicesContainer.innerHTML = selectedServicesArray.map(service => 
-          `<div class="service-tag">
-            ${service}
-            <span class="remove" onclick="removeService('${service.replace(/'/g, "\\'")}')">×</span>
-          </div>`
-        ).join('');
-      }
-    }
-
-window.removeService = function(serviceName) {
-  selectedServicesArray = selectedServicesArray.filter(s => s !== serviceName);
-  
-  // Remove selected class from the service option
-  const serviceOptions = document.querySelectorAll('.service-option');
-  serviceOptions.forEach(option => {
-    if (option.textContent.trim() === serviceName) {
-      option.classList.remove('selected');
-    }
-  });
-  
-  updateSelectedServices();
-};
-
-    function handleServiceCheckbox(checkbox, serviceName) {
-      if (checkbox.checked) {
-        if (!selectedServicesArray.includes(serviceName)) {
-          selectedServicesArray.push(serviceName);
-        }
-      } else {
-        selectedServicesArray = selectedServicesArray.filter(s => s !== serviceName);
-      }
-      updateSelectedServices();
-    }
-
-    window.toggleService = function(serviceName, element) {
-  if (selectedServicesArray.includes(serviceName)) {
-    // Remove service
-    selectedServicesArray = selectedServicesArray.filter(s => s !== serviceName);
-    element.classList.remove('selected');
-  } else {
-    // Add service
-    selectedServicesArray.push(serviceName);
-    element.classList.add('selected');
+// 2. Service select
+const SERVICES = [
+  'HIFU Face Lift', 'Diode Whitening & Hair Removal', 'Eyelash Extension',
+  'EMSCULPT Fat Reduction', 'Exilis Face & Body', 'Microblading', 'Gel Manicure', 'Gel Pedicure',
+  'Other/Special (type in notes)'
+];
+let selectedService = '';
+function renderServices() {
+  serviceDropdown.innerHTML = SERVICES.map(service => \
+    `<div class="service-option${selectedService === service ? ' selected' : ''}" tabindex="0">${service}</div>`
+  ).join('');
+}
+function closeDropdown() { serviceDropdown.classList.remove('show'); }
+serviceSection.addEventListener('click', () => {
+  renderServices(); serviceDropdown.classList.toggle('show');
+});
+document.addEventListener('click', e => {
+  if (!serviceSection.contains(e.target) && !serviceDropdown.contains(e.target)) closeDropdown();
+});
+serviceDropdown.addEventListener('click', e => {
+  if (e.target.classList.contains('service-option')) {
+    selectedService = e.target.textContent;
+    serviceSection.innerHTML = `<span style="color:var(--primary-pink);font-weight:600">${selectedService}</span>`;
+    closeDropdown();
+    setStep(1); // show staff
+    console.log('[Booking] Service selected:', selectedService);
   }
-  updateSelectedServices();
+});
+
+// 3. Staff select
+const STAFFS = ['Staff 1', 'Staff 2', 'Staff 3'];
+function renderStaffOptions() {
+  staffSelect.innerHTML = `<option value="">Select staff</option>` + STAFFS.map(staff => `<option>${staff}</option>`).join('');
+}
+staffSelect.addEventListener('change', () => {
+  if (staffSelect.value) { setStep(2); console.log('[Booking] Staff selected:', staffSelect.value); }
+});
+renderStaffOptions();
+
+// 4. Appointment date and time select
+let selectedDate = '', selectedTime = '';
+flatpickr(appointmentInput, {
+  dateFormat: 'Y-m-d',
+  minDate: 'today',
+  disable: [(date) => date.getDay() === 3],
+  onChange: function(selectedDates){
+    if (selectedDates.length) { selectedDate = selectedDates[0]; showTimeSlots(selectedDate); setStep(3); }
+  }
+});
+const TIMES = {
+  "Morning": ["09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM"],
+  "Afternoon": ["01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"],
+  "Evening": ["06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM", "08:30 PM"]
 };
+function showTimeSlots(date) {
+  let slotDiv = document.getElementById(timeSlotDivId);
+  if (!slotDiv) {
+    slotDiv = document.createElement('div');
+    slotDiv.id = timeSlotDivId;
+    slotDiv.className = 'form-group';
+    appointmentInput.parentNode.appendChild(slotDiv);
+  }
+  slotDiv.style.display = 'block';
+  slotDiv.innerHTML = `<label>Choose Time Slot</label>\
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">${Object.entries(TIMES).map(([period, times]) => \
+      `<div style='min-width:100px;'><div style='font-weight:700;margin-bottom:6px;color:var(--primary-pink)'>${period}</div>`+
+        times.map(t=>`<button type='button' class='btn time-btn' style='margin-bottom:4px;${selectedTime===t?'background:var(--dark-pink);':''}'>${t}</button>`).join('')+
+      `</div>`
+    ).join('')}</div>`;
+  slotDiv.querySelectorAll('.time-btn').forEach(btn=>btn.onclick=()=>{
+    selectedTime = btn.textContent;
+    slotDiv.querySelectorAll('.time-btn').forEach(b=>b.style.background='var(--primary-pink)');
+    btn.style.background='var(--dark-pink)';
+    setStep(4);
+    console.log('[Booking] Time slot chosen:', selectedTime);
+  });
+}
 
-    // Load services dynamically from Firebase
-    async function loadServices() {
-      serviceDropdown.innerHTML = `<div style="padding: 15px; text-align: center;">Loading services...</div>`;
-      try {
-        const snapshot = await db.collection("services").orderBy("category").get();
-        if (!snapshot.empty) {
-          let currentCategory = null;
-          let servicesHTML = '';
-          
-          snapshot.forEach(doc => {
-            const service = doc.data();
-            const category = service.category || "Other";
-            const name = service.name || "Unnamed Service";
-            let price = "";
-            if (service.price) {
-              const priceStr = service.price.toString();
-              price = priceStr.includes('₱') || priceStr.includes('P') 
-                ? ` - ${priceStr}` 
-                : ` - ₱${priceStr}`;
-            }
-            
-            const fullServiceName = `${name}${price}`;
-            
-            if (category !== currentCategory) {
-              servicesHTML += `<div class="service-category">${category}</div>`;
-              currentCategory = category;
-            }
-            
-servicesHTML += `
-  <div class="service-option" onclick="toggleService('${fullServiceName.replace(/'/g, "\\'")}', this)">
-    ${fullServiceName}
-  </div>
-`;
-          });
-          
-          serviceDropdown.innerHTML = servicesHTML;
-        } else {
-          serviceDropdown.innerHTML = `<div style="padding: 15px; text-align: center;">No services available</div>`;
-        }
-      } catch (err) {
-        console.error("Error loading services: ", err);
-        serviceDropdown.innerHTML = `<div style="padding: 15px; text-align: center;">Error loading services</div>`;
-      }
+// 5. Note counter
+noteInput.setAttribute('maxlength','100');
+let charCounter = document.getElementById('noteCounter');
+if (!charCounter) {
+  charCounter = document.createElement('div');
+  charCounter.id = 'noteCounter';
+  charCounter.style.cssText = 'text-align:right;font-size:0.87rem;color:#b04762;margin:-7px 0 9px 0;';
+  noteInput.parentNode.appendChild(charCounter);
+}
+noteInput.addEventListener('input',()=>{
+  charCounter.textContent = `${noteInput.value.length}/100 characters`;
+});
+noteInput.dispatchEvent(new Event('input'));
+
+// 6. Submit to Firestore
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Booking...';
+  try {
+    if (!loggedInUser || !selectedService || !staffSelect.value || !selectedDate || !selectedTime) {
+      alert('Please complete all the steps.');
+      throw new Error('Incomplete form');
     }
-
-    // Load staff dynamically
-    async function loadStaff() {
-      const staffSelect = document.getElementById("staff");
-      staffSelect.innerHTML = `<option value="">Loading staff...</option>`;
-      try {
-        const snapshot = await db.collection("users").get();
-        if (!snapshot.empty) {
-          staffSelect.innerHTML = `<option value="">Select a staff</option>`;
-          snapshot.forEach(doc => {
-            const staff = doc.data();
-            staffSelect.innerHTML += `<option value="${staff.fullName || "Unnamed"}">${staff.fullName || "Unnamed"}</option>`;
-          });
-        } else {
-          staffSelect.innerHTML = `<option value="">No staff available</option>`;
-        }
-      } catch (err) {
-        console.error("Error loading staff: ", err);
-        staffSelect.innerHTML = `<option value="">Error loading staff</option>`;
-      }
-    }
-    
-    loadServices();
-    loadStaff();
-
-    function showSuccessModal() {
-      const modal = document.getElementById('successModal');
-      modal.classList.add('show');
-      
-      let timeLeft = 30;
-      const countdownElement = document.getElementById('countdown');
-      
-      const countdownInterval = setInterval(() => {
-        timeLeft--;
-        countdownElement.textContent = timeLeft;
-        
-        if (timeLeft <= 5) {
-          countdownElement.classList.add('warning');
-        }
-        
-        if (timeLeft <= 0) {
-          clearInterval(countdownInterval);
-          window.location.href = 'index.html';
-        }
-      }, 1000);
-      
-      const backButton = document.querySelector('.success-btn');
-      backButton.addEventListener('click', () => {
-        clearInterval(countdownInterval);
-      });
-    }
-
-    document.getElementById('successModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        this.classList.remove('show');
-      }
-    });
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        const modal = document.getElementById('successModal');
-        if (modal.classList.contains('show')) {
-          modal.classList.remove('show');
-        }
-      }
-    });
-
-    async function sendEmail(appointmentData) {
-      const templateParams = {
-        customer_name: appointmentData.name,
-        to_email: appointmentData.email,
-        customer_phone: appointmentData.phone,
-        service: appointmentData.service,
-        staff: appointmentData.staff,
-        appointment_date: appointmentData.date,
-        appointment_time: appointmentData.time,
-        message: appointmentData.notes || "",
-        booking_date: new Date().toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        website_link: "#"
-      };
-
-      console.log('Sending email with params:', templateParams);
-
-      try {
-        const response = await emailjs.send(
-          'service_ehjfcod',
-          'template_avbj0m7',
-          templateParams
-        );
-        console.log('Email sent successfully!', response.status, response.text);
-        return true;
-      } catch (error) {
-        console.error('Failed to send email. Error details:', error);
-        console.error('Error status:', error.status);
-        console.error('Error text:', error.text);
-        
-        if (error.status === 422) {
-          console.error('EmailJS 422 Error: Check that your template variables match the templateParams keys');
-        } else if (error.status === 400) {
-          console.error('EmailJS 400 Error: Check your Service ID and Template ID');
-        }
-        return false;
-      }
-    }
-
-    document.querySelector(".contact-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const submitBtn = e.target.querySelector('.btn');
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Sending...';
-
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      
-      // Convert selected services to array of objects with full details
-      const services = selectedServicesArray.map(serviceName => {
-        // Extract price from service name (e.g., "Shaving - ₱150")
-        const priceMatch = serviceName.match(/₱(\d+)/);
-        const price = priceMatch ? parseInt(priceMatch[1]) : 0;
-        const nameOnly = serviceName.split(' - ')[0]; // Get name without price
-        
-        return {
-          id: serviceName, // Using full name as ID
-          name: nameOnly,
-          price: price
-        };
-      });
-      
-      const staff = document.getElementById("staff").value;
-      const appointment = document.getElementById("appointment").value;
-      const notes = document.getElementById("message").value.trim();
-
-      if (!name || !email || !phone || selectedServicesArray.length === 0 || !staff || !appointment) {
-        alert("Please fill in all required fields.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-        return;
-      }
-
-      const phPhoneRegex = /^(?:\+639|09)\d{9}$/;
-      if (!phPhoneRegex.test(phone)) {
-        alert("Please enter a valid Philippine mobile number (09XXXXXXXXX or +639XXXXXXXXX).");
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-        return;
-      }
-
-      const allowedDomains = ['gmail.com', 'yahoo.com', 'yahoo.com.ph', 'hotmail.com', 'outlook.com', 'outlook.com.ph', 'live.com', 'msn.com', 'microsoft.com'];
-      const emailDomain = email.split('@')[1]?.toLowerCase();
-      if (!allowedDomains.includes(emailDomain)) {
-        alert("Please use a valid email from: gmail.com, yahoo.com(.ph), hotmail.com, outlook.com(.ph), live.com, msn.com, or microsoft.com.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-        return;
-      }
-
-      const allowedEmailRegex = /^[A-Za-z0-9._%+-]+@(gmail\.com|yahoo\.com(?:\.ph)?|hotmail\.com|outlook\.com(?:\.ph)?|live\.com|msn\.com|microsoft\.com)$/i;
-      if (!allowedEmailRegex.test(email)) {
-        alert("Please use a valid email from: gmail.com, yahoo.com(.ph), hotmail.com, outlook.com(.ph), live.com, msn.com, or microsoft.com.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-        return;
-      }
-
-const dateObj = new Date(appointment);
-
-// Format date as YYYY-MM-DD for calendar compatibility
-const year = dateObj.getFullYear();
-const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-const day = String(dateObj.getDate()).padStart(2, '0');
-const formattedDate = `${year}-${month}-${day}`;
-
-// Format time as HH:MM AM/PM
-const hours = dateObj.getHours();
-const minutes = dateObj.getMinutes();
-const period = hours >= 12 ? 'PM' : 'AM';
-const displayHours = hours % 12 || 12;
-const formattedTime = `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
-
-const appointmentData = {
-  name: name,
-  email: email,
-  phone: phone,
-  service: services.map(s => s.name).join(', '), // Convert to comma-separated string for email
-  staff: staff,
-  date: formattedDate,
-  time: formattedTime,
-  notes: notes
+    const docData = {
+      userId: loggedInUser.uid,
+      name: nameInput.value,
+      email: emailInput.value,
+      phone: phoneInput.value,
+      service: selectedService,
+      staff: staffSelect.value,
+      date: appointmentInput.value,
+      timeSlot: selectedTime,
+      note: noteInput.value.trim(),
+      createdAt: serverTimestamp()
+    };
+    console.log('[Booking] Submitting appointment:', docData);
+    await setDoc(doc(db, 'appointments', `${loggedInUser.uid}_${Date.now()}`), docData);
+    showSuccessModal();
+    form.reset();
+    submitBtn.textContent = 'Booked!';
+    submitBtn.disabled = false;
+  } catch (err) {
+    console.error('[Booking] Error:', err);
+    alert('Could not submit appointment. Please complete all steps.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Book Appointment';
+  }
 };
-
-      let notifications = JSON.parse(localStorage.getItem('skinshipNotifications') || '[]');
-      const notification = {
-        id: Date.now(),
-        type: 'appointment',
-        message: `New appointment request from ${name}`,
-        details: appointmentData,
-        read: false,
-        timestamp: new Date().toISOString()
-      };
-      notifications.unshift(notification);
-      if (notifications.length > 99) {
-        notifications = notifications.slice(0, 99);
-      }
-      localStorage.setItem('skinshipNotifications', JSON.stringify(notifications));
-
-      try {
-const newData = {
-  name,
-  email,
-  phone,
-  services: services,
-  service: services[0]?.name || '',
-  staff,
-  appointment: dateObj.toLocaleString(),
-  notes,
-  status: "Pending",
-  date: formattedDate,
-  time: formattedTime,
-  archived: false,
-  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-};
-
-        const batch = db.batch();
-        const custRef = db.collection("customers").doc();
-        batch.set(custRef, newData);
-        const apptRef = db.collection("appointments").doc();
-        batch.set(apptRef, { ...newData, customerRef: custRef.id });
-        await batch.commit();
-
-        const emailSent = await sendEmail(appointmentData);
-        
-        if (!emailSent) {
-          console.warn('Email notification failed, but appointment was saved.');
-        }
-
-        showSuccessModal();
-        e.target.reset();
-        selectedServicesArray = [];
-        updateSelectedServices();
-      } catch (err) {
-        console.error("Error adding document: ", err);
-        alert("Something went wrong. Please try again.");
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-      }
-    });
-  </script>
-  <script type="module" src="role-check.js"></script>
-  
+function showSuccessModal() {
+  successModal.querySelector('.success-title').textContent = '✅ Appointment successfully submitted!';
+  successModal.querySelector('.success-message').textContent = 'We’ll contact you soon.';
+  successModal.classList.add('show');
+  let left = 12;
+  countdownMsg.textContent = left;
+  const interval = setInterval(()=>{
+    left--;
+    countdownMsg.textContent = left;
+    if(left<=0){
+      clearInterval(interval);
+      window.location.href = 'index.html';
+    }
+  },1000);
+}
+console.log('[Booking] Contact screen stepper script loaded OK!');
+</script>
 
 </body>
 </html>

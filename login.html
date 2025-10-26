@@ -1506,6 +1506,28 @@
         }
 
         const role = (userDoc.data().role || "").toLowerCase();
+        const userData = userDoc.data();
+        
+        // Handle customer login (no 2FA required)
+        if (role === "customer") {
+          // Store session data
+          const sessionData = {
+            userId: user.uid,
+            email: email,
+            role: role,
+            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+            isLoggedIn: true
+          };
+          sessionStorage.setItem('userSession', JSON.stringify(sessionData));
+          
+          showSuccess("✅ Login successful! Redirecting...");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+          return;
+        }
+        
+        // Handle admin/staff login (with 2FA)
         if (!role || (role !== "admin" && role !== "staff")) {
           await auth.signOut();
           showError("❌ No valid role assigned. Contact system admin.");
@@ -1630,9 +1652,19 @@ if (enteredCode === codeData.code) {
   
   const userDoc = await getDoc(doc(db, "users", currentUser.uid));
   const role = (userDoc.data().role || "").toLowerCase();
+  const userData = userDoc.data();
+  
+  // Store session data for admin/staff
+  const sessionData = {
+    userId: currentUser.uid,
+    email: userEmail,
+    role: role,
+    fullName: userData.fullName || userData.fullname || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+    isLoggedIn: true
+  };
+  sessionStorage.setItem('userSession', JSON.stringify(sessionData));
   
   saveCredentials(userEmail, passwordInput.value, rememberCheckbox.checked);
-  const userData = userDoc.data();
   localStorage.setItem('currentUserRole', role);
   window.currentUserData = {
     email: userEmail,
