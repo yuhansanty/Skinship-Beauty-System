@@ -1310,17 +1310,20 @@ window.confirmCancellation = confirmCancellation;
         }
       }
 
-      populateStaffDropdown() {
-        const employeeSelect = document.getElementById('employeeSelect');
-        employeeSelect.innerHTML = '<option value="">Select employee</option>';
-        this.allStaff.forEach(staff => {
-          const option = document.createElement('option');
-          option.value = staff.fullName || staff.email;
-          option.textContent = staff.fullName || staff.email;
-          employeeSelect.appendChild(option);
-        });
-      }
-
+populateStaffDropdown() {
+  const employeeSelect = document.getElementById('employeeSelect');
+  employeeSelect.innerHTML = '<option value="">Select employee</option>';
+  
+  // Filter to only show admin and staff users, exclude customers
+  this.allStaff
+    .filter(staff => staff.role === 'admin' || staff.role === 'staff')
+    .forEach(staff => {
+      const option = document.createElement('option');
+      option.value = staff.fullName || staff.email;
+      option.textContent = staff.fullName || staff.email;
+      employeeSelect.appendChild(option);
+    });
+}
       setupServicesListener() {
         if (this.servicesListener) this.servicesListener();
 
@@ -1451,27 +1454,39 @@ clearServiceSelection() {
   this.updateSelectedServices();
 }
 
-      setupCustomersListener() {
-        if (this.customersListener) this.customersListener();
+setupCustomersListener() {
+  if (this.customersListener) this.customersListener();
 
-        this.customersListener = onSnapshot(collection(this.db, "appointments"), (snapshot) => {
-          this.customers = snapshot.docs
-            .map(doc => {
-              const data = doc.data();
-              
-              let normalizedDate = data.date;
-              if (data.date && !data.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                const dateObj = new Date(data.date);
-                if (!isNaN(dateObj.getTime())) {
-                  normalizedDate = dateObj.toISOString().split('T')[0];
-                }
-              }
-              
-              return { 
-                id: doc.id, 
-                ...data,
-                date: normalizedDate
-              };
+  this.customersListener = onSnapshot(collection(this.db, "appointments"), (snapshot) => {
+    this.customers = snapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        
+        let normalizedDate = data.date;
+        
+        // If date is a Timestamp or needs conversion
+        if (data.date && typeof data.date === 'object' && data.date.toDate) {
+          // Firebase Timestamp
+          const dateObj = data.date.toDate();
+          normalizedDate = dateObj.getFullYear() + '-' + 
+                          String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(dateObj.getDate()).padStart(2, '0');
+        } else if (data.date && !data.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          // String that needs parsing
+          const dateObj = new Date(data.date);
+          if (!isNaN(dateObj.getTime())) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            normalizedDate = `${year}-${month}-${day}`;
+          }
+        }
+        
+        return { 
+          id: doc.id, 
+          ...data,
+          date: normalizedDate
+        };
             })
             .filter(c => c.archived !== true);
           this.renderCalendar();

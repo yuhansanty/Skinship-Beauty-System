@@ -652,12 +652,16 @@
       </button>
     </form>
   </div>
+  
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  
   <script>
+
+    
     // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyD2Yh7L4Wl9XRlOgxnzZyo8xxds6a02UJY",
@@ -679,7 +683,9 @@
     const userSession = JSON.parse(session);
 
 // EmailJS Configuration
-emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public key
+emailjs.init("05pESgFVX7W6C_9dz");
+
+
 
     // Fetch user details from Firestore
     async function loadUserDetails() {
@@ -1238,35 +1244,58 @@ document.getElementById('bookingForm').addEventListener('submit', async (e) => {
       hour12: true
     });
     
-    // Save to Firestore
-    const bookingData = {
-      userId: userSession.userId,
-      customerName: userSession.fullName,
-      customerEmail: userSession.email,
-      customerPhone: userSession.phone,
-      service: service,
-      staff: staff,
-      date: dateStr,
-      time: selectedTime,
-      notes: notes,
-      status: 'pending',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
+// Format date consistently as YYYY-MM-DD (no timezone issues)
+const year = selectedDate.getFullYear();
+const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+const day = String(selectedDate.getDate()).padStart(2, '0');
+const formattedDate = `${year}-${month}-${day}`;
+
+// Create appointment datetime string for display (use local timezone)
+const [timeHours, timeMinutes] = selectedTime.split(':');
+const appointmentDateTime = new Date(year, selectedDate.getMonth(), selectedDate.getDate(), parseInt(timeHours), parseInt(timeMinutes));
+
+// Save to Firestore
+const bookingData = {
+  userId: userSession.userId,
+  name: userSession.fullName,        
+  email: userSession.email,           
+  phone: userSession.phone,           
+  service: service,
+  staff: staff,
+  date: formattedDate,                 
+  time: selectedTime,
+  notes: notes,
+  status: 'Pending',                   
+  appointment: appointmentDateTime.toLocaleString(),
+  archived: false,                    
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+};
     
     await db.collection('appointments').add(bookingData);
-    
-    // Send email using EmailJS
-    const emailParams = {
-      to_email: userSession.email,
-      customer_name: userSession.fullName,
-      customer_phone: userSession.phone,
-      appointment_date: dateStr,
-      appointment_time: selectedTime,
-      service: service,
-      staff: staff,
-      message: notes || '',  // Optional notes
-      booking_date: bookingDateTime
-    };
+
+const emailDateStr = selectedDate.toLocaleDateString('en-US', { 
+  weekday: 'long', 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric' 
+});
+
+const emailParams = {
+  to_email: userSession.email,
+  customer_name: userSession.fullName,
+  customer_phone: userSession.phone,
+  appointment_date: emailDateStr, 
+  appointment_time: selectedTime,
+  service: service,
+  staff: staff,
+  message: notes || '',
+};
+
+const bookingDate = new Date().toLocaleDateString('en-US', { 
+     year: 'numeric', 
+     month: 'long', 
+     day: 'numeric' 
+   });
     
     await emailjs.send(
       'service_ehjfcod',        // Replace with your service ID

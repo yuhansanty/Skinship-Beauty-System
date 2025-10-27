@@ -1,5 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
   getFirestore, 
   doc, 
@@ -15,7 +15,7 @@ import {
   query,
   where,
   limit
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -30,6 +30,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Add initialization check
+console.log('Firebase initialized:', {
+  app: !!app,
+  auth: !!auth,
+  db: !!db
+});
 
 const EMAILJS_SERVICE_ID = "service_pdzqb5n";
 const EMAILJS_TEMPLATE_ID = "template_zn4wfe7"; 
@@ -611,6 +618,15 @@ function filterCustomers() {
   const dropdown = document.getElementById('customerDropdown');
   const searchTerm = input.value.toLowerCase();
   
+  // Clear selected customer if input is being manually edited
+  if (selectedCustomerId) {
+    const selectedCustomer = confirmedCustomers.find(c => c.id === selectedCustomerId);
+    if (selectedCustomer && input.value !== selectedCustomer.name) {
+      selectedCustomerId = null;
+      clearCustomerSelection();
+    }
+  }
+  
   const filtered = confirmedCustomers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm) ||
     (customer.email && customer.email.toLowerCase().includes(searchTerm)) ||
@@ -752,6 +768,22 @@ function clearCustomerSelection() {
     phoneInput.classList.add('border-pink-100');
   }
 }
+
+// New function to handle manual input clearing
+function handleCustomerNameInput() {
+  const input = document.getElementById('customerName');
+  const currentValue = input.value.trim();
+  
+  // If input is empty or cleared, reset everything
+  if (!currentValue) {
+    selectedCustomerId = null;
+    clearCustomerSelection();
+  }
+  
+  // Filter customers as user types
+  filterCustomers();
+}
+
 
 function toggleUserMenu() {
   const menu = document.getElementById('userMenu');
@@ -897,6 +929,7 @@ window.toggleCustomerDropdown = toggleCustomerDropdown;
 window.filterCustomers = filterCustomers;
 window.selectCustomer = selectCustomer;
 window.clearCustomerSelection = clearCustomerSelection;
+window.handleCustomerNameInput = handleCustomerNameInput;
 
 // ==================== CATEGORY & PRODUCT MENUS ====================
 

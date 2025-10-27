@@ -1306,9 +1306,28 @@
                 location.reload();
             }
 
-            function handleBookNow() {
-                AuthUtils.handleBookNow();
-            }
+function handleBookNow() {
+  const session = sessionStorage.getItem('userSession');
+  
+  if (!session) {
+    // Not logged in, redirect to login
+    window.location.href = 'login.html';
+    return;
+  }
+  
+  const userSession = JSON.parse(session);
+  
+  // Check role and redirect accordingly
+  if (userSession.role === 'customer') {
+    window.location.href = 'contact.html';
+  } else if (userSession.role === 'admin' || userSession.role === 'staff') {
+    alert('Staff and Admin users should use the Calendar page to manage appointments.');
+    window.location.href = 'calendar.html';
+  } else {
+    // Unknown role, redirect to login
+    window.location.href = 'login.html';
+  }
+}
 
             function toggleDropdown() {
                 AuthUtils.toggleDropdown();
