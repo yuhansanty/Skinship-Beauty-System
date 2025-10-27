@@ -857,7 +857,8 @@
               <th>Status</th>
               <th>Contact number</th>
               <th>Assigned Employee</th>
-              <th>Customer assigned date</th>
+              <th>Appointment Date</th>
+              <th>Appointment Time</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -901,18 +902,11 @@
         </div>
         
 <div class="form-row">
-  <label class="form-label">Services *</label>
-  <div class="relative">
-    <div id="serviceSelectContainer" class="form-input cursor-pointer" style="min-height: 42px; padding: 10px 15px;">
-      <div id="selectedServicesDisplay" class="flex flex-wrap gap-2">
-        <span class="text-gray-400 text-sm">Select services...</span>
-      </div>
-    </div>
-    <div id="serviceDropdownMulti" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto">
-      <!-- Services will be populated here -->
-    </div>
-  </div>
-  <span class="error-message" id="serviceError">Please select at least one service</span>
+  <label class="form-label">Service *</label>
+  <select class="form-input" id="service" name="service" required>
+    <option value="">Select a service</option>
+  </select>
+  <span class="error-message" id="serviceError">Please select a service</span>
 </div>
 
         <div class="form-row">
@@ -1302,6 +1296,70 @@ window.confirmCancellation = confirmCancellation;
       byCategory: new Map()
     };
 
+    let usersCache = new Map(); // Cache for user data
+
+    // Function to fetch user details by userId
+    async function fetchUserDetails(userId) {
+      if (!userId) return null;
+      
+      // Check cache first
+      if (usersCache.has(userId)) {
+        return usersCache.get(userId);
+      }
+      
+      try {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          // Build full name
+          const firstName = userData.firstName || '';
+          const middleInitial = userData.middleInitial ? userData.middleInitial + '.' : '';
+          const lastName = userData.lastName || '';
+          const fullName = `${firstName} ${middleInitial} ${lastName}`.trim();
+          
+          const userInfo = {
+            id: userId,
+            fullName: fullName || userData.fullName || userData.username || userData.email || 'N/A',
+            email: userData.email || 'N/A',
+            phone: userData.phoneNumber || userData.phone || 'N/A'
+          };
+          
+          // Cache the user data
+          usersCache.set(userId, userInfo);
+          return userInfo;
+        }
+      } catch (error) {
+        console.error(`Error fetching user details for ${userId}:`, error);
+      }
+      
+      return null;
+    }
+
+    // Function to enrich appointment data with user information
+    async function enrichAppointmentWithUserData(appointment) {
+      if (appointment.userId) {
+        const userDetails = await fetchUserDetails(appointment.userId);
+        if (userDetails) {
+          return {
+            ...appointment,
+            customerName: userDetails.fullName,
+            customerEmail: userDetails.email,
+            customerPhone: userDetails.phone,
+            // Keep original fields for backward compatibility
+            name: appointment.name || userDetails.fullName,
+            email: appointment.email || userDetails.email,
+            phone: appointment.phone || userDetails.phone,
+            // Ensure date and time fields are preserved
+            appointmentDate: appointment.date,
+            appointmentTime: appointment.time
+          };
+        }
+      }
+      
+      // Return original appointment if no userId or user not found
+      return appointment;
+    }
+
     async function loadInitialData() {
       try {
         console.log("Loading initial data...");
@@ -1325,14 +1383,21 @@ window.confirmCancellation = confirmCancellation;
         console.log("Loaded services:", servicesCache.byId.size);
         
         const appointmentsSnapshot = await getDocs(collection(db, "appointments"));
-        allCustomers = appointmentsSnapshot.docs
+        const rawAppointments = appointmentsSnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(c => c.archived !== true)
-          .sort((a, b) => {
-            const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-            const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-            return bTime - aTime;
-          });
+          .filter(c => c.archived !== true);
+        
+        // Enrich appointments with user data
+        console.log("Enriching appointments with user data...");
+        const enrichedAppointments = await Promise.all(
+          rawAppointments.map(appointment => enrichAppointmentWithUserData(appointment))
+        );
+        
+        allCustomers = enrichedAppointments.sort((a, b) => {
+          const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return bTime - aTime;
+        });
         
         console.log("Loaded appointments:", allCustomers.length);
         
@@ -1360,19 +1425,23 @@ window.confirmCancellation = confirmCancellation;
       
       customersListener = onSnapshot(
         collection(db, "appointments"),
-        (snapshot) => {
+        async (snapshot) => {
           if (snapshot.docChanges().length > 0) {
             console.log("Appointments data changed, updating...");
             
-            snapshot.docChanges().forEach((change) => {
+            // Process changes with user data enrichment
+            const changePromises = snapshot.docChanges().map(async (change) => {
               const customerData = { id: change.doc.id, ...change.doc.data() };
               
               if (change.type === "added" || change.type === "modified") {
-                const index = allCustomers.findIndex(c => c.id === customerData.id);
+                // Enrich with user data
+                const enrichedCustomer = await enrichAppointmentWithUserData(customerData);
+                
+                const index = allCustomers.findIndex(c => c.id === enrichedCustomer.id);
                 if (index !== -1) {
-                  allCustomers[index] = customerData;
+                  allCustomers[index] = enrichedCustomer;
                 } else {
-                  allCustomers.push(customerData);
+                  allCustomers.push(enrichedCustomer);
                 }
               }
               
@@ -1380,6 +1449,9 @@ window.confirmCancellation = confirmCancellation;
                 allCustomers = allCustomers.filter(c => c.id !== customerData.id);
               }
             });
+            
+            // Wait for all enrichment to complete
+            await Promise.all(changePromises);
             
             allCustomers = allCustomers
               .filter(c => c.archived !== true)
@@ -1807,6 +1879,7 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
     window.saveBulkStatus = saveBulkStatus;
 
     async function openEditModalWithData(customer) {
+      console.log('Opening edit modal with customer data:', customer);
       editMode = true;
       selectedCustomerId = customer.id;
       
@@ -1820,14 +1893,17 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
       const emailInput = document.getElementById('customerEmail');
       const phoneInput = document.getElementById('contactNumber');
       
-      nameInput.value = customer.name || '';
-      emailInput.value = customer.email || '';
-      phoneInput.value = customer.phone || '';
+      nameInput.value = customer.customerName || customer.name || '';
+      emailInput.value = customer.customerEmail || customer.email || '';
+      phoneInput.value = customer.customerPhone || customer.phone || '';
       
       nameInput.readOnly = true;
       nameInput.classList.add('bg-gray-100', 'cursor-not-allowed');
       
-      if (customer.email && customer.email.trim() !== '') {
+      const customerEmail = customer.customerEmail || customer.email;
+      const customerPhone = customer.customerPhone || customer.phone;
+      
+      if (customerEmail && customerEmail.trim() !== '') {
         emailInput.readOnly = true;
         emailInput.classList.add('bg-gray-100', 'cursor-not-allowed');
       } else {
@@ -1835,7 +1911,7 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
         emailInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
       }
       
-      if (customer.phone && customer.phone.trim() !== '') {
+      if (customerPhone && customerPhone.trim() !== '') {
         phoneInput.readOnly = true;
         phoneInput.classList.add('bg-gray-100', 'cursor-not-allowed');
       } else {
@@ -1844,65 +1920,89 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
       }
 
 await populateServiceSelect();
+populateStaffDropdown();
 
 // Wait for dropdown to populate
 await new Promise(resolve => setTimeout(resolve, 100));
 
-clearServiceSelection();
+// Handle service selection with simple select dropdown
+const customerService = customer.service;
+console.log('Customer service data:', customerService);
 
-// Handle multiple services selection
-if (Array.isArray(customer.services) && customer.services.length > 0) {
-  customer.services.forEach(service => {
-    // Try to find by service name since contact form uses name as ID
-    const serviceName = service.name || service.id;
+if (customerService) {
+  // Wait for service dropdown to be populated
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
+  const serviceSelect = document.getElementById('service');
+  if (serviceSelect) {
+    // Set the selected service value
+    serviceSelect.value = customerService;
+    console.log('Set service to:', customerService);
     
-    // Look through all service options to find a match
-    const allOptions = document.querySelectorAll('.service-option');
-    allOptions.forEach(option => {
-      const optionName = option.dataset.serviceName;
-      
-      // Check if the names match (case-insensitive)
-      if (optionName && serviceName && 
-          optionName.toLowerCase().trim() === serviceName.toLowerCase().trim()) {
-        const checkbox = option.querySelector('input[type="checkbox"]');
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      }
-    });
-  });
-} else if (customer.service) {
-  // Handle old single service format
-  const allOptions = document.querySelectorAll('.service-option');
-  allOptions.forEach(option => {
-    if (option.dataset.serviceName.toLowerCase().trim() === customer.service.toLowerCase().trim()) {
-      const checkbox = option.querySelector('input[type="checkbox"]');
-      if (checkbox) checkbox.checked = true;
+    // If exact match not found, log available options for debugging
+    if (serviceSelect.value !== customerService) {
+      console.log('Service not found in dropdown:', customerService);
+      console.log('Available services:', Array.from(serviceSelect.options).map(opt => opt.value));
     }
-  });
+  }
 }
 
-updateSelectedServices();
+      // Set status
+      const statusValue = customer.status || 'Pending';
+      console.log('Setting status to:', statusValue);
+      document.getElementById('statusSelect').value = statusValue;
+      
+      // Set employee/staff
+      const staffValue = customer.staff || '';
+      console.log('Setting staff to:', staffValue);
+      document.getElementById('employeeSelect').value = staffValue;
 
-      document.getElementById('statusSelect').value = customer.status || 'Pending';
-      document.getElementById('employeeSelect').value = customer.staff || '';
-
+      // Handle date and time population
       if (customer.date && customer.time) {
         try {
-          const dateTimeStr = `${customer.date} ${customer.time}`;
-          const dateObj = new Date(dateTimeStr);
+          let dateObj;
+          
+          // Handle different date formats
+          if (customer.date.includes('-')) {
+            // Format: YYYY-MM-DD
+            dateObj = new Date(customer.date);
+          } else {
+            // Format: "Monday, October 28, 2025" or other formats
+            dateObj = new Date(customer.date);
+          }
           
           if (!isNaN(dateObj.getTime())) {
+            // Parse time (e.g., "2:00pm" or "14:00")
+            let hours, minutes;
+            const timeStr = customer.time.toLowerCase();
+            
+            if (timeStr.includes('am') || timeStr.includes('pm')) {
+              // 12-hour format (e.g., "2:00pm")
+              const [timePart, period] = timeStr.split(/[ap]m/);
+              const [hourStr, minuteStr] = timePart.split(':');
+              hours = parseInt(hourStr);
+              minutes = parseInt(minuteStr) || 0;
+              
+              if (period === 'p' && hours !== 12) hours += 12;
+              if (period === 'a' && hours === 12) hours = 0;
+            } else {
+              // 24-hour format
+              const [hourStr, minuteStr] = timeStr.split(':');
+              hours = parseInt(hourStr);
+              minutes = parseInt(minuteStr) || 0;
+            }
+            
+            // Set the datetime-local input value
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
             const day = String(dateObj.getDate()).padStart(2, '0');
-            const hours = String(dateObj.getHours()).padStart(2, '0');
-            const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            const hoursStr = String(hours).padStart(2, '0');
+            const minutesStr = String(minutes).padStart(2, '0');
             
-            document.getElementById('appointmentDate').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            document.getElementById('appointmentDate').value = `${year}-${month}-${day}T${hoursStr}:${minutesStr}`;
           }
         } catch (e) {
-          console.error('Error parsing date/time:', e);
+          console.error('Error parsing date/time:', e, 'Date:', customer.date, 'Time:', customer.time);
         }
       }
       
@@ -1939,6 +2039,7 @@ updateSelectedServices();
       clearErrors();
       
       await populateServiceSelect();
+      populateStaffDropdown();
     }
 
 function clearForm() {
@@ -1951,7 +2052,7 @@ function clearForm() {
 }
 
 function clearErrors() {
-  ['customerName', 'customerEmail', 'contactNumber', 'appointmentDate', 'serviceSelectContainer', 'employeeSelect'].forEach(id => {
+  ['customerName', 'customerEmail', 'contactNumber', 'appointmentDate', 'service', 'employeeSelect'].forEach(id => {
     const element = document.getElementById(id);
     if (element) element.classList.remove('error');
   });
@@ -1982,75 +2083,151 @@ function clearErrors() {
     }
 
 function populateServiceSelect() {
-  const serviceDropdownMulti = document.getElementById('serviceDropdownMulti');
-  if (!serviceDropdownMulti) return;
+  // Replace the multi-select dropdown with a simple select dropdown like contact.html
+  const serviceSelect = document.getElementById('service');
+  if (!serviceSelect) return;
   
-  serviceDropdownMulti.innerHTML = '';
-  
-  const groupedServices = {};
-  window.servicesCache.byId.forEach(service => {
-    const category = service.category || 'Other';
-    if (!groupedServices[category]) {
-      groupedServices[category] = [];
-    }
-    groupedServices[category].push(service);
-  });
-  
-  Object.keys(groupedServices).sort().forEach(category => {
-    const categoryHeader = document.createElement('div');
-    categoryHeader.className = 'service-category-header';
-    categoryHeader.textContent = category;
-    serviceDropdownMulti.appendChild(categoryHeader);
-    
-    groupedServices[category].sort((a, b) => a.name.localeCompare(b.name)).forEach(service => {
-      const option = document.createElement('div');
-      option.className = 'service-option';
-      option.dataset.serviceId = service.id;
-      option.dataset.serviceName = service.name;
-      option.dataset.servicePrice = service.price;
-      
-      option.innerHTML = `
-        <input type="checkbox" id="service-${service.id}" data-service-id="${service.id}">
-        <label for="service-${service.id}" class="cursor-pointer flex-1">
-          ${service.name} - ₱${service.price.toLocaleString()}
-        </label>
-      `;
-      
-      option.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-          const checkbox = option.querySelector('input[type="checkbox"]');
-          checkbox.checked = !checkbox.checked;
-        }
-        updateSelectedServices();
-      });
-      
-      serviceDropdownMulti.appendChild(option);
+  const services = {
+    "FLEEK EYELASH": [
+      "EYELASH NATURAL (1 SIZE) P 499",
+      "EYELASH NATURAL VOLUME P 599",
+      "EYELASH DOLL EYE (2 SIZE) P 599",
+      "EYELASH CAT EYE (3 SIZE) P 699",
+      "WISPY NATURAL P 699",
+      "WISPY VOLUME P 799",
+      "EYELASH REMOVAL IN 100/ OUT 200",
+      "LASH LIFT P499 WITH TINT P 599"
+    ],
+    "BROWMAZING": [
+      "THREADING P 200",
+      "SHAVING P 150",
+      "BROWLAMINATION P 499 WITH TINT P 699",
+      "BROWWAXING P 249"
+    ],
+    "WOKE UP LIKE THIS": [
+      "MICROBLADING P 1,499 (2 SESSIONS)",
+      "COMBI/OMBRE/COMBIBROWS P 2,499 (2 SESSIONS)",
+      "TOP/ LOWER EYELINER P 1,999 (2 SESSIONS)",
+      "KOREAN BBGLOW P 1,499 (PER SESSION)",
+      "LIP TATTOO/ LIP PIGMENTATION P 2,999 (2 SESSIONS)"
+    ],
+    "EXPRESS OFFER (30 MINS.)": [
+      "BACK MASSAGE P 399",
+      "HEAD MASSAGE P 399",
+      "FOOT MASSAGE P 399",
+      "HAND MASSAGE P 399",
+      "FOOT REFLEX P 499",
+      "HAND REFLEX P 499",
+      "HEAD MASSAGE + EAR CANDLING P 499",
+      "EAR CANDLING P 199"
+    ],
+    "HAPPY NAILS": [
+      "BASIC MANICURE P 120",
+      "BASIC PEDICURE P 170",
+      "FOOTSPA P 300",
+      "HANDSPA P 300",
+      "GEL REMOVAL IN 100 / OUT 200",
+      "SOFT GEL REMOVAL IN 200 / OUT 300",
+      "SOFTGEL NAIL EXTENSIONS P 1,700",
+      "GEL MANICURE P 550",
+      "GEL PEDICURE P 650",
+      "FOOTSPA OR HANDSPA WITH WHITENING SCRUB P 400 WITH CALLUS REMOVAL P 450"
+    ],
+    "PROMO PACKAGES": [
+      "PACKAGE 1: UV GEL MANICURE + BASIC PEDICURE + CLASSIC FOOTSPA P 850",
+      "PACKAGE 2: UV GEL MANICURE + BASIC PEDICURE + DELUXE FOOTSPA P 900",
+      "PACKAGE 3: UV GEL MANICURE + UV GEL PEDICURE + CLASSIC FOOTSPA P 1,300",
+      "PACKAGE 4: UV GEL MANICURE + UV GEL PEDICURE + DELUXE FOOTSPA WITH WHITENING SCRUB P 1,400",
+      "PACKAGE 5: CLASSIC FOOTSPA + BASIC PEDICURE + 30 MINS. FOOT MASSAGE P 750",
+      "PACKAGE 6: DELUXE FOOTSPA WITH WHITENING SCRUB + BASIC PEDICURE + 30 MINS. FOOT MASSAGE P 800",
+      "PACKAGE 7: NATURAL EYELASH OR LASH LIFT (ADD 100 FOR TINT) + UV GEL MANICURE P 950",
+      "PACKAGE 8: FOOTSPA + UV GELPEDICURE P 850",
+      "PACKAGE 9: FOOTSPA + BASIC PEDICURE + FOOT REFLEX P 850",
+      "PACKAGE 10: FOOTSPA + UV GEL PEDICURE + FOOT MASSAGE P 1,150"
+    ],
+    "THERAPEUTIC HEAT": [
+      "HAND PARAFFIN P 250",
+      "FOOT PARAFFIN P 300",
+      "HAND PARAFFIN + HANDSPA P 550",
+      "FOOT PARAFFIN + FOOT SPA P 600",
+      "HAND PARAFFIN + HAND MASSAGE P 550",
+      "FOOT PARAFFIN + FOOT MASSAGE P 600"
+    ],
+    "WAX – OUT": [
+      "UNDER ARM P 399 / P 499",
+      "HALF LEGS P 499 / P 599",
+      "FULL LEGS P 699 / P 799",
+      "BRAZILLIAN P 999 / P 1,099",
+      "UPPER/ LOWER LIP P 299 / P 399",
+      "FULL FACE P 899 / P 999",
+      "FULL ARMS P 599 / P 699"
+    ],
+    "ES-FACIALY FOR YOU": [
+      "HYDRAFACIAL WITH COLLAGEN MASK P 899",
+      "BLACK DOLL CARBON LASER P 1,999 (2 SESSIONS)",
+      "BLACK DOLL CARBON LASER LAY – AWAY PROMO",
+      "4+1 SESSIONS P 4,500 DOWN P 2,500 SUCCEEDING IS P 1,000",
+      "9+1 SESSIONS P 9,000 DOWN P 3,000 SUCCEEDING IS P 1,000",
+      "ADD 100 FOR PDT LIGHT OR COLLAGEN MASK",
+      "HYDRAFACIAL + BLACK DOLL + EXILLIS/ HIFU P 3,399",
+      "HYDRAFACIAL + BBGLOW + COLLAGEN PDT P 1,899",
+      "BLACK DOLL + EXILLIS / HIFU + PDT P 2,499",
+      "HYDRAFACIAL + BBGLOWBLUSH + PDT P 2,199"
+    ],
+    "FACE AND BODY CONTOURING": [
+      "HIFU P 1,499 / PER SESSION",
+      "EXILLISS P 1,499 / PER SESSION 30 MINS.",
+      "EMSLIM P 2,000/ PER SESSION 30 MINS.",
+      "CRYOLIPOLYSIS P 1,499/ SESSION /BODY AREA",
+      "CRYOLIPOLYSIS P 999 / CHIN AREA",
+      "SUPER TRIO COMBO P 3,499 1 SESSION EACH",
+      "LAY-WAY PROMO P 7,499",
+      "EXILLIS 6+1 SESSIONS",
+      "EMSLIM 5+1 SESSIONS",
+      "POWERCOMBO EXISLIM 3+3 SESSIONS"
+    ],
+    "LASER HAIR REMOVAL / WHITENING": [
+      "DIODE LASER UNDERARM 1 SESSION P 899",
+      "DIODE LASER BRAZILLIAN 1 SESSION P 1,999",
+      "DIODE LASER FULL ARMS 1 SESSION P 1,499",
+      "DIODE LASER LOWER/UPPER LEGS 1 SESSION P 1,999",
+      "DIODE LASER UPPER LIP 1 SESSION P 599",
+      "DIODE LASER LOWER LIP 1 SESSION P 899",
+      "DIODE LASER BIKINI LINE 1 SESSION P 1,099",
+      "DIODE LASER FULL FACE MALE 1 SESSION P 2,999",
+      "DIODE LASER FULL FACE FEMALE 1 SESSION P 1,999",
+      "ADD ON FOR WHITENING SCRUB P 200"
+    ],
+    "PICOSURE LASER TREATMENT": [
+      "LIP P 999",
+      "KNEE / NECK / ELBOW/ UNDERARM / FACE P 1,499",
+      "2 SESSIONS PICO MELASMA P 4,000",
+      "2 SESSIONS TATTOO REMOVAL OR BIRTH 1-3 INC. P 3,000",
+      "PROMO 4+1 SESSIONS ANY PART P 4,000"
+    ],
+    "WARTS REMOVAL FRACTIONAL LASER": [
+      "FACE / NECK P 1,999",
+      "BACK P 2,999",
+      "FACE / NECK / BACK P 5,499",
+      "SKIN TAG BY AREA P 1,499",
+      "CO2 FRACTIONAL LASER LAY-AWAY 3+2 SESSIONS P 7,997 DOWN P 3,999"
+    ]
+  };
+
+  let servicesHTML = '<option value="">Select a service</option>';
+  for (const [category, serviceList] of Object.entries(services)) {
+    servicesHTML += `<optgroup label="${category}">`;
+    serviceList.forEach(service => {
+      servicesHTML += `<option value="${service}">${service}</option>`;
     });
-  });
+    servicesHTML += '</optgroup>';
+  }
+  serviceSelect.innerHTML = servicesHTML;
 }
 
 function updateSelectedServices() {
-  const checkboxes = document.querySelectorAll('#serviceDropdownMulti input[type="checkbox"]:checked');
-  const selectedServices = Array.from(checkboxes).map(cb => {
-    const option = cb.closest('.service-option');
-    return {
-      id: option.dataset.serviceId,
-      name: option.dataset.serviceName,
-      price: option.dataset.servicePrice
-    };
-  });
-  
-  displaySelectedServices(selectedServices);
-  
-  // Update selected state in dropdown
-  document.querySelectorAll('.service-option').forEach(option => {
-    const checkbox = option.querySelector('input[type="checkbox"]');
-    if (checkbox.checked) {
-      option.classList.add('selected');
-    } else {
-      option.classList.remove('selected');
-    }
-  });
+  // No longer needed with simple select dropdown
+  // This function is kept for compatibility but does nothing
 }
 
 function displaySelectedServices(services) {
@@ -2079,39 +2256,24 @@ function removeService(serviceId, event) {
 }
 
 function getSelectedServices() {
-  const checkboxes = document.querySelectorAll('#serviceDropdownMulti input[type="checkbox"]:checked');
-  return Array.from(checkboxes).map(cb => {
-    const option = cb.closest('.service-option');
-    return {
-      id: option.dataset.serviceId,
-      name: option.dataset.serviceName,
-      price: parseFloat(option.dataset.servicePrice)
-    };
-  });
+  const serviceSelect = document.getElementById('service');
+  if (serviceSelect && serviceSelect.value) {
+    return [{
+      name: serviceSelect.value,
+      value: serviceSelect.value
+    }];
+  }
+  return [];
 }
 
 function clearServiceSelection() {
-  document.querySelectorAll('#serviceDropdownMulti input[type="checkbox"]').forEach(cb => {
-    cb.checked = false;
-  });
-  updateSelectedServices();
+  const serviceSelect = document.getElementById('service');
+  if (serviceSelect) {
+    serviceSelect.value = '';
+  }
 }
 
-document.getElementById('serviceSelectContainer')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  const dropdown = document.getElementById('serviceDropdownMulti');
-  dropdown.classList.toggle('hidden');
-});
-
-document.addEventListener('click', (e) => {
-  const container = document.getElementById('serviceSelectContainer');
-  const dropdown = document.getElementById('serviceDropdownMulti');
-  if (container && dropdown && 
-      !container.contains(e.target) && 
-      !dropdown.contains(e.target)) {
-    dropdown.classList.add('hidden');
-  }
-});
+// Multi-select event listeners removed - using simple select dropdown now
 
     function toggleDropdown() {
       const dropdown = document.getElementById('serviceDropdown');
@@ -2152,12 +2314,57 @@ document.addEventListener('click', (e) => {
     function populateStaffDropdown() {
       const employeeSelect = document.getElementById('employeeSelect');
       employeeSelect.innerHTML = '<option value="">Select employee</option>';
-      allStaff.forEach(staff => {
+      
+      // Add only Staff 1-3 options
+      const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
+      staffOptions.forEach(staffName => {
         const option = document.createElement('option');
-        option.value = staff.fullName || staff.email;
-        option.textContent = staff.fullName || staff.email;
+        option.value = staffName;
+        option.textContent = staffName;
         employeeSelect.appendChild(option);
       });
+    }
+
+    function formatTimeDisplay(timeStr) {
+      if (!timeStr) return '-';
+      
+      try {
+        // Handle different time formats and normalize to "H:MM AM/PM"
+        let normalizedTime = timeStr.toString().trim();
+        
+        // If it already has AM/PM, parse and reformat
+        if (normalizedTime.toLowerCase().includes('am') || normalizedTime.toLowerCase().includes('pm')) {
+          // Extract time and period - handle formats like "3:00pm", "10:00 AM", "10:00am", "12:43 AM"
+          const timeMatch = normalizedTime.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i);
+          if (timeMatch) {
+            let hours = parseInt(timeMatch[1]);
+            let minutes = parseInt(timeMatch[2]);
+            const period = timeMatch[3].toUpperCase();
+            
+            // Format as HH:MM AM/PM with space (leading zero for hours)
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+          }
+        }
+        
+        // If it's in 24-hour format (e.g., "14:30"), convert to 12-hour
+        const time24Match = normalizedTime.match(/^(\d{1,2}):(\d{2})$/);
+        if (time24Match) {
+          let hours = parseInt(time24Match[1]);
+          let minutes = parseInt(time24Match[2]);
+          const period = hours >= 12 ? 'PM' : 'AM';
+          
+          if (hours > 12) hours -= 12;
+          if (hours === 0) hours = 12;
+          
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
+        
+        // If no recognizable format, return as-is
+        return normalizedTime;
+      } catch (e) {
+        console.error('Error formatting time:', timeStr, e);
+        return timeStr;
+      }
     }
 
     function renderTable() {
@@ -2195,7 +2402,7 @@ document.addEventListener('click', (e) => {
       document.getElementById('nextBtn').disabled = currentPage === totalPages || totalPages === 0;
 
       if (paginatedCustomers.length === 0) {
-        customerTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-gray-500 py-8">No customers found</td></tr>`;
+        customerTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-gray-500 py-8">No customers found</td></tr>`;
         updateEditButton();
         return;
       }
@@ -2225,27 +2432,68 @@ if (Array.isArray(c.services) && c.services.length > 0) {
   }
 }
 
+        // Debug status values
+        if (c.status !== 'Pending' && c.status !== 'Confirmed' && c.status !== 'Cancelled' && c.status !== 'Completed') {
+          console.log('Unexpected status value:', `"${c.status}"`, 'for customer:', c.id);
+        }
+        
+        // Format date and time for display
+        let displayDate = '-';
+        let displayTime = '-';
+        
+        if (c.date) {
+          try {
+            // If date is already formatted nicely, use it; otherwise format it
+            if (c.date.includes('/') || c.date.includes('-')) {
+              const dateObj = new Date(c.date);
+              if (!isNaN(dateObj.getTime())) {
+                displayDate = dateObj.toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                });
+              } else {
+                displayDate = c.date;
+              }
+            } else {
+              displayDate = c.date;
+            }
+          } catch (e) {
+            displayDate = c.date;
+          }
+        }
+        
+        if (c.time) {
+          // Format time to ensure consistent "H:MM AM/PM" format
+          displayTime = formatTimeDisplay(c.time);
+        }
+
         tr.innerHTML = `
           <td>
             <input type="checkbox" class="customer-checkbox" value="${c.id}" onchange="updateEditButton()" style="cursor: pointer;">
           </td>
-          <td>${c.name || '-'}</td>
-          <td>${c.email || '-'}</td>
+          <td>${c.customerName || c.name || '-'}</td>
+          <td>${c.customerEmail || c.email || '-'}</td>
           <td>${displayService || '-'}</td>
           <td>
-            <span class="px-2 py-1 text-xs rounded-full ${
-              c.status === 'Confirmed' ? 'bg-blue-100 text-blue-800' : 
-              c.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
-              c.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-              c.status === 'Completed' ? 'bg-green-100 text-green-800' :
-              'bg-gray-100 text-gray-800'
-            }">
+            <span class="px-2 py-1 text-xs rounded-full ${(() => {
+              const status = (c.status || '').toString().trim();
+              switch(status) {
+                case 'Confirmed': return 'bg-blue-100 text-blue-800';
+                case 'Cancelled': return 'bg-red-100 text-red-800';
+                case 'Completed': return 'bg-green-100 text-green-800';
+                case 'Pending':
+                case '':
+                default: return 'bg-yellow-100 text-yellow-800';
+              }
+            })()}">
               ${c.status || 'Pending'}
             </span>
           </td>
-          <td>${c.phone || '-'}</td>
+          <td>${c.customerPhone || c.phone || '-'}</td>
           <td>${c.staff || '-'}</td>
-          <td>${c.appointment || '-'}</td>
+          <td>${displayDate}</td>
+          <td><span class="font-medium text-black font-mono">${displayTime}</span></td>
         `;
         customerTableBody.appendChild(tr);
       });
@@ -2428,8 +2676,9 @@ async function deleteCustomer() {
         hasError = true;
       }
 
-if (selectedServices.length === 0) {
-  showError('serviceSelectContainer', 'serviceError');
+const serviceValue = document.getElementById('service').value;
+if (!serviceValue) {
+  showError('service', 'serviceError');
   hasError = true;
 }
 
@@ -2459,9 +2708,8 @@ if (selectedServices.length === 0) {
 const customerData = {
   name: customerName,
   email: customerEmail || '',
-  services: selectedServices, 
-  service: selectedServices[0]?.name || '', 
-  status: status,
+  service: serviceValue, 
+  status: status || 'Pending',
   phone: normalizedPhone,
   staff: employee,
   appointment: dateObj.toLocaleString(),
@@ -2487,15 +2735,11 @@ if (editMode && selectedCustomerId) {
     window.pendingCustomerUpdate = {
       customerDoc,
       customerData,
-      customerEmail,
-      selectedServices
+      customerEmail
     };
     
     // Show cancellation reason modal
-    showCancellationReasonModal({
-      ...customerData,
-      service: selectedServices.map(s => s.name).join(', ')
-    });
+    showCancellationReasonModal(customerData);
     return; // Don't save yet, wait for cancellation confirmation
   }
   
@@ -2504,11 +2748,7 @@ if (editMode && selectedCustomerId) {
   
   // Send appropriate email based on status change
   if (customerEmail && statusChanged) {
-    const emailData = { 
-      ...customerData, 
-      service: selectedServices.map(s => s.name).join(', ') 
-    };
-    await window.sendAppointmentEmail(emailData);
+    await window.sendAppointmentEmail(customerData);
   }
 } else {
   customerData.createdAt = serverTimestamp();
@@ -2516,12 +2756,7 @@ if (editMode && selectedCustomerId) {
   await addDoc(customersRef, customerData);
   
   if (customerEmail) {
-
-    const emailData = { 
-      ...customerData, 
-      service: selectedServices.map(s => s.name).join(', ') 
-    };
-    await window.sendAppointmentEmail(emailData);
+    await window.sendAppointmentEmail(customerData);
   }
 }
         
@@ -2655,6 +2890,7 @@ showToast('Failed to save customer. Please try again.', 'error');
     window.previousPage = previousPage;
     window.nextPage = nextPage;
     window.updateEditButton = updateEditButton;
+    window.formatTimeDisplay = formatTimeDisplay;
   </script>
 
 </body>
