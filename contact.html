@@ -669,13 +669,19 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Check if user is logged in
-    const session = sessionStorage.getItem('userSession');
-    if (!session) {
-      alert('Please login to book an appointment');
-      window.location.href = 'login.html';
-    }
-    const userSession = JSON.parse(session);
+// Check if user is logged in and has correct role
+const session = sessionStorage.getItem('userSession');
+if (!session) {
+  alert('Please login to book an appointment');
+  window.location.href = 'login.html';
+}
+const userSession = JSON.parse(session);
+
+// Only allow customers to access booking page
+if (userSession.role !== 'customer') {
+  alert('Only registered customers can book appointments');
+  window.location.href = userSession.role === 'staff' || userSession.role === 'admin' ? 'dashboard.html' : 'index.html';
+}
 
     // Fetch user details from Firestore
     async function loadUserDetails() {
