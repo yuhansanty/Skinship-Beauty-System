@@ -852,16 +852,16 @@
             <!-- Customer Info -->
             <div class="mb-4 space-y-2">
               <div class="relative">
-                <input
-                  type="text"
-                  id="customerName"
-                  placeholder="Customer Name * (Type or select customer)"
-                  class="w-full p-3 rounded-lg border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm"
-                  required
-                  onfocus="toggleCustomerDropdown()"
-                  oninput="filterCustomers()"
-                  autocomplete="off"
-                />
+<input
+  type="text"
+  id="customerName"
+  placeholder="Customer Name * (Type or select customer)"
+  class="w-full p-3 rounded-lg border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm"
+  required
+  onfocus="toggleCustomerDropdown()"
+  oninput="handleCustomerNameInput()"
+  autocomplete="off"
+/>
                 <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
                 <div id="customerDropdown" class="customer-dropdown hidden"></div>
               </div>
@@ -995,7 +995,7 @@
     </div>
   </div>
 
-  <script type="module" src="cashier.js"></script>
+<script type="module" src="./cashier.js"></script>
   <script>
     // Update logout time
     setInterval(() => {
@@ -1012,5 +1012,11 @@
       }
     }, 1000);
   </script>
+  <script>
+  (function() {
+    emailjs.init("wzHyhur6JYCadyO7m");
+  })();
+</script>
+<script type="module" src="./cashier.js"></script>
 </body>
 </html>

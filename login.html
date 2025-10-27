@@ -1496,36 +1496,40 @@
           return;
         }
 
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (!userDoc.exists()) {
-          await auth.signOut();
-          showError("❌ No role assigned. Contact system admin.");
-          submitBtn.disabled = false;
-          submitBtn.textContent = "SIGN IN";
-          return;
-        }
+const userDoc = await getDoc(doc(db, "users", user.uid));
+if (!userDoc.exists()) {
+  await auth.signOut();
+  showError("❌ No role assigned. Contact system admin.");
+  submitBtn.disabled = false;
+  submitBtn.textContent = "SIGN IN";
+  return;
+}
 
-        const role = (userDoc.data().role || "").toLowerCase();
-        const userData = userDoc.data();
-        
-        // Handle customer login (no 2FA required)
-        if (role === "customer") {
-          // Store session data
-          const sessionData = {
-            userId: user.uid,
-            email: email,
-            role: role,
-            fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-            isLoggedIn: true
-          };
-          sessionStorage.setItem('userSession', JSON.stringify(sessionData));
-          
-          showSuccess("✅ Login successful! Redirecting...");
-          setTimeout(() => {
-            window.location.href = "index.html";
-          }, 1000);
-          return;
-        }
+const role = (userDoc.data().role || "").toLowerCase();
+const userData = userDoc.data();
+
+// Handle customer login (no 2FA, redirect to contact.html)
+if (role === "customer") {
+  // Store session data for customer
+  const sessionData = {
+    userId: user.uid,
+    email: email,
+    role: role,
+    fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+    phone: userData.phoneNumber || userData.phone || '',
+    isLoggedIn: true
+  };
+  sessionStorage.setItem('userSession', JSON.stringify(sessionData));
+  
+  showSuccess("✅ Login successful! Redirecting...");
+  submitBtn.disabled = false;
+  submitBtn.textContent = "SIGN IN";
+  
+  setTimeout(() => {
+    window.location.href = "contact.html";
+  }, 1000);
+  return;
+}
         
         // Handle admin/staff login (with 2FA)
         if (!role || (role !== "admin" && role !== "staff")) {

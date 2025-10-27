@@ -1332,10 +1332,16 @@ function updateReservations() {
 
 function updateAgenda() {
   const agendaList = document.getElementById("agendaList");
-  const todayISO = new Date().toISOString().split("T")[0];
+const today = new Date();
+const todayISO = today.getFullYear() + '-' + 
+                 String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(today.getDate()).padStart(2, '0');
+console.log("Today's date:", todayISO);
+console.log("Sample appointment date:", dataCache.customers[0]?.date);
+  
   
   const todaysAppointments = dataCache.customers.filter(data => 
-    data.date === todayISO && (data.status || '').toLowerCase() === 'pending'
+  data.appointmentDate === todayISO && (data.status || '').toLowerCase() === 'pending'
   ).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   agendaList.innerHTML = "";
