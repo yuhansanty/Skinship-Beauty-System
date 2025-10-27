@@ -2,31 +2,164 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Terms and Conditions</title>
-  <link rel="stylesheet" href="styles.css"> <!-- Link to existing stylesheet -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms and Conditions - Skinship Beauty</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    * {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #fef4f3 0%, #f8e8e6 100%);
+      min-height: 100vh;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #da5c73 0%, #b97b8b 100%);
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(218, 92, 115, 0.3);
+    }
+
+    .section-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid transparent;
+    }
+
+    .section-card:hover {
+      border-color: #da5c73;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(218, 92, 115, 0.15);
+    }
+  </style>
 </head>
-<body>
-  <main class="content-container">
-    <section class="content-section">
-      <h1>Terms and Conditions</h1>
-      <p>Last Updated: October 2025</p>
-      <p>Welcome to Skinship Beauty’s Appointment and Registration System. By registering or booking through this platform, you agree to comply with the following terms and conditions. Please read them carefully before submitting your information.</p>
-      <h2>Purpose of Registration</h2>
-      <p>Registration allows Skinship Beauty to process appointments, maintain customer records, and provide personalized services.</p>
-      <h2>Accuracy of Information</h2>
-      <p>You agree to provide accurate and complete personal details (first name, last name, email address, and contact number). Submitting false or misleading information may result in the cancellation of your registration or appointment.</p>
-      <h2>Use of the System</h2>
-      <p>This system is intended solely for booking and service management related to Skinship Beauty. Misuse, such as unauthorized access or data alteration, is strictly prohibited.</p>
-      <h2>Communication</h2>
-      <p>By registering, you consent to receive appointment confirmations, reminders, and service updates via email or SMS.</p>
-      <h2>Service Changes</h2>
-      <p>Skinship Beauty reserves the right to modify, suspend, or discontinue any service or feature within the system without prior notice.</p>
-      <h2>Limitation of Liability</h2>
-      <p>While Skinship Beauty takes all reasonable measures to protect your data, it shall not be held liable for technical issues, system downtime, or events beyond its control.</p>
-      <h2>Acceptance of Terms</h2>
-      <p>By clicking “Register” or submitting your information, you acknowledge that you have read, understood, and agreed to these Terms and Conditions.</p>
-    </section>
+<body class="bg-[#e6bfc7] min-h-screen">
+  <!-- Header -->
+  <header class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-spa text-3xl text-[#da5c73]"></i>
+            <div>
+              <h1 class="text-2xl font-bold text-[#b97b8b]">SKINSHIP BEAUTY</h1>
+              <p class="text-sm text-gray-600">Terms and Conditions</p>
+            </div>
+          </div>
+          <button onclick="window.location.href='register.html'" class="btn-primary px-4 py-2 rounded-lg text-white font-medium text-sm">
+            <i class="fa-solid fa-arrow-left mr-2"></i>Return to Registration
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="p-4 md:p-8 pb-12">
+    <div class="max-w-4xl mx-auto">
+      <div class="glass-card rounded-2xl p-6 md:p-8">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl md:text-4xl font-bold text-[#da5c73] mb-2">Terms and Conditions</h1>
+          <p class="text-gray-600 text-sm">Last Updated: October 2025</p>
+        </div>
+
+        <div class="prose max-w-none">
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <p class="text-gray-700 leading-relaxed mb-4">
+              Welcome to Skinship Beauty's Appointment and Registration System. By registering or booking through this platform, you agree to comply with the following terms and conditions. Please read them carefully before submitting your information.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-user-plus mr-3"></i>Purpose of Registration
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              Registration allows Skinship Beauty to process appointments, maintain customer records, and provide personalized services. Your account enables us to track your service history and preferences for a better experience.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-check-circle mr-3"></i>Accuracy of Information
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              You agree to provide accurate and complete personal details (first name, last name, email address, and contact number). Submitting false or misleading information may result in the cancellation of your registration or appointment.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-desktop mr-3"></i>Use of the System
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              This system is intended solely for booking and service management related to Skinship Beauty. Misuse, such as unauthorized access, data alteration, or attempting to disrupt system operations, is strictly prohibited and may result in account termination.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-comments mr-3"></i>Communication
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              By registering, you consent to receive appointment confirmations, reminders, and service updates via email or SMS. We may also send promotional offers and updates about our services, which you can opt out of at any time.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-calendar-alt mr-3"></i>Appointment Policies
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              Appointments are subject to availability and confirmation. We reserve the right to reschedule or cancel appointments due to unforeseen circumstances. Customers are expected to arrive on time and provide adequate notice for cancellations.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-edit mr-3"></i>Service Changes
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              Skinship Beauty reserves the right to modify, suspend, or discontinue any service or feature within the system without prior notice. We will make reasonable efforts to notify users of significant changes that may affect their experience.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-shield-alt mr-3"></i>Limitation of Liability
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              While Skinship Beauty takes all reasonable measures to protect your data and provide reliable service, we shall not be held liable for technical issues, system downtime, or events beyond our control that may affect your use of the system.
+            </p>
+          </div>
+
+          <div class="section-card glass-card rounded-xl p-6 bg-gradient-to-r from-[#fef4f3] to-[#f8e8e6]">
+            <h2 class="text-xl font-semibold text-[#da5c73] mb-4 flex items-center">
+              <i class="fa-solid fa-handshake mr-3"></i>Acceptance of Terms
+            </h2>
+            <p class="text-gray-700 leading-relaxed">
+              By clicking "Register" or submitting your information, you acknowledge that you have read, understood, and agreed to these Terms and Conditions. Your continued use of our services constitutes ongoing acceptance of these terms.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </body>
 </html>
