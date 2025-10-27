@@ -580,9 +580,7 @@
         </label>
         <select id="staff" name="staff" required>
           <option value="">Select a staff member</option>
-          <option value="Staff 1">Staff 1</option>
-          <option value="Staff 2">Staff 2</option>
-          <option value="Staff 3">Staff 3</option>
+          <!-- Staff options will be populated dynamically -->
         </select>
       </div>
       
@@ -726,6 +724,92 @@ emailjs.init("05pESgFVX7W6C_9dz");
 
     // Load user details on page load
     loadUserDetails();
+
+    // Global variables for staff management
+    let availableStaff = [];
+    let staffListener = null;
+
+    // Function to load available staff from Firebase
+    async function loadAvailableStaff() {
+      try {
+        // Set up real-time listener for staff changes
+        if (staffListener) {
+          staffListener(); // Unsubscribe previous listener
+        }
+
+        staffListener = db.collection("users")
+          .where("role", "==", "staff")
+          .onSnapshot((snapshot) => {
+            availableStaff = [];
+            
+            snapshot.forEach((doc) => {
+              const userData = doc.data();
+              const staffData = {
+                id: doc.id,
+                fullName: userData.fullName || "N/A",
+                isAbsent: userData.isAbsent || false,
+                onLaunchBreak: userData.onLaunchBreak || false,
+                isArchived: userData.archived || false
+              };
+              
+              // Only include staff who are not absent, not on break, and not archived
+              if (!staffData.isAbsent && !staffData.onLaunchBreak && !staffData.isArchived) {
+                availableStaff.push(staffData);
+              }
+            });
+            
+            // Update the staff dropdown
+            updateStaffDropdown();
+          }, (error) => {
+            console.error("Error loading staff:", error);
+          });
+      } catch (error) {
+        console.error("Error setting up staff listener:", error);
+      }
+    }
+
+    // Function to update the staff dropdown
+    function updateStaffDropdown() {
+      const staffSelect = document.getElementById('staff');
+      const currentValue = staffSelect.value; // Preserve current selection if still valid
+      
+      // Clear existing options except the first one
+      staffSelect.innerHTML = '<option value="">Select a staff member</option>';
+      
+      // Add available staff options
+      availableStaff.forEach(staff => {
+        const option = document.createElement('option');
+        option.value = staff.fullName;
+        option.textContent = staff.fullName;
+        staffSelect.appendChild(option);
+      });
+      
+      // Restore previous selection if still available
+      if (currentValue && availableStaff.some(staff => staff.fullName === currentValue)) {
+        staffSelect.value = currentValue;
+      } else if (currentValue) {
+        // If previously selected staff is no longer available, clear selection and show message
+        console.log(`Staff "${currentValue}" is no longer available`);
+        alert(`Sorry, ${currentValue} is no longer available. Please select another staff member.`);
+        selectedTime = null; // Clear time selection since staff changed
+        if (selectedDate) {
+          loadTimeSlots(selectedDate); // Reload time slots
+        }
+      }
+      
+      // Check if form is still complete
+      checkFormComplete();
+    }
+
+    // Load available staff on page load
+    loadAvailableStaff();
+
+    // Cleanup listeners when page unloads
+    window.addEventListener('beforeunload', () => {
+      if (staffListener) {
+        staffListener();
+      }
+    });
 
     // Function to fetch existing appointments for a specific staff and date
     async function getBookedSlots(staffName, selectedDate) {
