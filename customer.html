@@ -1601,6 +1601,8 @@ showToast("An error occurred during logout. Please try again.", 'error');
       });
     }
 
+
+
 window.addEventListener("beforeunload", async (e) => {
   if (customersListener) customersListener();
   if (inventoryListener) inventoryListener();
@@ -1608,6 +1610,29 @@ window.addEventListener("beforeunload", async (e) => {
   if (sessionMonitor) sessionMonitor(); 
   await handleClockOut();
 });
+
+// Monitor purchase orders for sidebar bubble
+function monitorPurchaseOrders() {
+  if (purchaseOrderListener) {
+    purchaseOrderListener();
+  }
+
+  const pendingOrdersQuery = query(
+    collection(db, 'purchaseOrders'),
+    where('status', '==', 'pending')
+  );
+  
+  purchaseOrderListener = onSnapshot(
+    pendingOrdersQuery,
+    (snapshot) => {
+      const newOrderCount = snapshot.size;
+      updatePurchaseOrderBubble(newOrderCount);
+    },
+    (error) => {
+      console.error('Error monitoring purchase orders:', error);
+    }
+  );
+}
 
 // Toast notification system
 function showToast(message, type = 'info', duration = 3000) {
