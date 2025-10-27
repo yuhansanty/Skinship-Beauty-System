@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Book Appointment - Skinship Beauty</title>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
@@ -655,7 +656,7 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <script>
     // Firebase Config
     const firebaseConfig = {
@@ -676,6 +677,9 @@
       window.location.href = 'login.html';
     }
     const userSession = JSON.parse(session);
+
+// EmailJS Configuration
+emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public key
 
     // Fetch user details from Firestore
     async function loadUserDetails() {
@@ -1136,10 +1140,84 @@
         }, 1000);
     }
 
-    document.querySelector(".contact-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        showSuccessModal();
+// Form submission handler
+document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Booking...';
+  
+  try {
+    // Get form data
+    const service = document.getElementById('service').value;
+    const staff = document.getElementById('staff').value;
+    const notes = document.getElementById('message').value;
+    
+    const dateStr = selectedDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     });
+    
+    // Get current booking date and time
+    const now = new Date();
+    const bookingDateTime = now.toLocaleString('en-US', { 
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    // Save to Firestore
+    const bookingData = {
+      userId: userSession.userId,
+      customerName: userSession.fullName,
+      customerEmail: userSession.email,
+      customerPhone: userSession.phone,
+      service: service,
+      staff: staff,
+      date: dateStr,
+      time: selectedTime,
+      notes: notes,
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    await db.collection('appointments').add(bookingData);
+    
+    // Send email using EmailJS
+    const emailParams = {
+      to_email: userSession.email,
+      customer_name: userSession.fullName,
+      customer_phone: userSession.phone,
+      appointment_date: dateStr,
+      appointment_time: selectedTime,
+      service: service,
+      staff: staff,
+      message: notes || '',  // Optional notes
+      booking_date: bookingDateTime
+    };
+    
+    await emailjs.send(
+      'service_ehjfcod',        // Replace with your service ID
+      'template_avbj0m7',       // Replace with your booking template ID
+      emailParams
+    );
+    
+    // Show success modal
+    showSuccessModal();
+    
+  } catch (error) {
+    console.error('Error booking appointment:', error);
+    alert('Failed to book appointment. Please try again.');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Appointment';
+  }
+});
   </script>
 </body>
 </html>
