@@ -721,12 +721,41 @@ emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public ke
     // Load user details on page load
     loadUserDetails();
 
+    // Function to fetch existing appointments for a specific staff and date
+    async function getBookedSlots(staffName, selectedDate) {
+      try {
+        const dateStr = selectedDate.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        
+        const appointmentsQuery = await db.collection('appointments')
+          .where('staff', '==', staffName)
+          .where('date', '==', dateStr)
+          .get();
+        
+        const bookedTimes = [];
+        appointmentsQuery.forEach(doc => {
+          const data = doc.data();
+          bookedTimes.push(data.time);
+        });
+        
+        return bookedTimes;
+      } catch (error) {
+        console.error('Error fetching booked slots:', error);
+        return [];
+      }
+    }
+
     // Global variables
     let selectedServicesArray = [];
     let selectedDate = null;
     let selectedTime = null;
     let currentMonth = new Date().getMonth();
     let currentYear = new Date().getFullYear();
+    let bookedSlots = {}; // Store booked appointments by staff and date
 
     // Service Selection Logic
     const serviceSelect = document.getElementById('service');
@@ -869,9 +898,17 @@ emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public ke
       checkFormComplete();
     }
 
-    function loadTimeSlots(date) {
+    async function loadTimeSlots(date) {
       const container = document.getElementById('timeSlotsContainer');
       container.innerHTML = ''; // Clear previous slots
+
+      const staffSelect = document.getElementById('staff');
+      const selectedStaff = staffSelect.value;
+
+      // Show loading message if staff is selected
+      if (selectedStaff) {
+        container.innerHTML = '<div class="no-selection"><i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #d1d5db; margin-bottom: 10px;"></i><p>Loading available times...</p></div>';
+      }
 
       const timeSlots = {
         morning: [
@@ -884,6 +921,12 @@ emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public ke
           '5:00pm', '5:30pm', '6:00pm', '6:30pm'
         ]
       };
+
+      // Get booked slots for the selected staff and date
+      let bookedTimes = [];
+      if (selectedStaff) {
+        bookedTimes = await getBookedSlots(selectedStaff, date);
+      }
 
       const grid = document.createElement('div');
       grid.className = 'time-slots-grid';
@@ -899,22 +942,36 @@ emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public ke
           timeSlot.className = 'time-slot';
           timeSlot.textContent = slot;
           
-          // Set background color based on period
-          if (period === 'morning') {
-              timeSlot.style.backgroundColor = '#fef9c3'; // Lighter Yellow
-          } else if (period === 'afternoon') {
-              timeSlot.style.backgroundColor = '#fde2e4'; // Lighter Pink
-          } else if (period === 'evening') {
-              timeSlot.style.backgroundColor = '#dbeafe'; // Lighter Blue
+          // Check if this time slot is already booked
+          const isBooked = bookedTimes.includes(slot);
+          
+          if (isBooked) {
+            timeSlot.classList.add('disabled');
+            timeSlot.style.backgroundColor = '#f3f4f6';
+            timeSlot.style.color = '#9ca3af';
+            timeSlot.style.cursor = 'not-allowed';
+            timeSlot.title = 'This time slot is already booked';
+            timeSlot.innerHTML = `${slot}<br><small style="font-size: 0.7rem; color: #ef4444;">BOOKED</small>`;
+          } else {
+            // Set background color based on period for available slots
+            if (period === 'morning') {
+                timeSlot.style.backgroundColor = '#fef9c3'; // Lighter Yellow
+            } else if (period === 'afternoon') {
+                timeSlot.style.backgroundColor = '#fde2e4'; // Lighter Pink
+            } else if (period === 'evening') {
+                timeSlot.style.backgroundColor = '#dbeafe'; // Lighter Blue
+            }
+            timeSlot.addEventListener('click', () => selectTime(slot));
           }
 
-          timeSlot.addEventListener('click', () => selectTime(slot));
           column.appendChild(timeSlot);
         });
 
         grid.appendChild(column);
       });
 
+      // Clear loading message and show time slots
+      container.innerHTML = '';
       container.appendChild(grid);
       checkFormComplete();
     }
@@ -946,6 +1003,15 @@ emailjs.init("05pESgFVX7W6C_9dz"); // Replace with your actual EmailJS public ke
 
     // Initialize calendar
     generateCalendar(currentMonth, currentYear);
+
+    // Add event listener for staff selection to refresh time slots
+    document.getElementById('staff').addEventListener('change', function() {
+      // If a date is already selected, reload time slots to check availability
+      if (selectedDate) {
+        loadTimeSlots(selectedDate);
+      }
+      checkFormComplete();
+    });
 
     // Event listeners for navigation
     document.getElementById('prevMonth').addEventListener('click', () => {
