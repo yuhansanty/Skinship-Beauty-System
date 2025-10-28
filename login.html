@@ -1505,8 +1505,17 @@ if (!userDoc.exists()) {
   return;
 }
 
-const role = (userDoc.data().role || "").toLowerCase();
 const userData = userDoc.data();
+const role = (userData.role || "").toLowerCase();
+
+// CHECK IF ACCOUNT IS ARCHIVED - Block login immediately
+if (userData.archived === true) {
+  await auth.signOut();
+  showError("❌ This account has been archived and cannot log in. Please contact the administrator.");
+  submitBtn.disabled = false;
+  submitBtn.textContent = "SIGN IN";
+  return;
+}
 
 // Handle customer login (no 2FA, redirect to contact.html)
 if (role === "customer") {
@@ -1541,6 +1550,15 @@ if (role === "customer") {
         }
 
 if (is2FAValid(user.uid)) {
+  // Double-check archived status even with valid 2FA
+  if (userData.archived === true) {
+    await auth.signOut();
+    showError("❌ This account has been archived and cannot log in. Please contact the administrator.");
+    submitBtn.disabled = false;
+    submitBtn.textContent = "SIGN IN";
+    return;
+  }
+  
   // Generate new session ID and invalidate old sessions
   const newSessionId = generateSessionId();
   await setDoc(doc(db, "users", user.uid), {
@@ -1639,6 +1657,19 @@ if (is2FAValid(user.uid)) {
         }
 
 if (enteredCode === codeData.code) {
+  // DOUBLE-CHECK archived status before completing 2FA
+  const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+  const userData = userDoc.data();
+  
+  if (userData.archived === true) {
+    await auth.signOut();
+    showError("❌ This account has been archived during login and cannot log in. Please contact the administrator.");
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = "VERIFY CODE";
+    switchToLogin();
+    return;
+  }
+  
   showSuccess("✅ Verification successful! Redirecting...");
   
   mark2FAValidated(currentUser.uid);
@@ -1654,9 +1685,7 @@ if (enteredCode === codeData.code) {
   sessionStorage.setItem('sessionId', newSessionId);
   sessionStorage.setItem('userId', currentUser.uid);
   
-  const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-  const role = (userDoc.data().role || "").toLowerCase();
-  const userData = userDoc.data();
+  const role = (userData.role || "").toLowerCase();
   
   // Store session data for admin/staff
   const sessionData = {
