@@ -1794,26 +1794,50 @@ function updateStaffAvailability() {
   }
 }
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        window.appState.currentUserId = user.uid;
-        window.appState.currentUserEmail = user.email;
-        
-        try {
-          const userRef = doc(db, "users", user.uid);
-          const userSnap = await getDoc(userRef);
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    window.appState.currentUserId = user.uid;
+    window.appState.currentUserEmail = user.email;
+    
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
 
-          await updateDoc(userRef, { 
-              availability: true,
-              lastUpdated: serverTimestamp()
-            });
+      // CHECK IF ACCOUNT IS ARCHIVED - Force logout if archived
+      if (!userSnap.exists()) {
+        console.error("User document not found in Firestore!");
+        await signOut(auth);
+        window.location.href = "index.html";
+        return;
+      }
+      
+      const userData = userSnap.data();
+      
+      // Block archived accounts from accessing dashboard
+      if (userData.archived === true) {
+        console.warn("Archived account attempted to access dashboard");
+        showToast("This account has been archived and cannot access the system.", 'error');
+        await signOut(auth);
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2000);
+        return;
+      }
 
-            // ADD THIS - Start session monitoring
-            setupSessionMonitoring(user.uid);
+      // Set availability only if not absent
+      if (!userData.isAbsent) {
+        await updateDoc(userRef, { 
+          availability: true,
+          lastUpdated: serverTimestamp()
+        });
+      }
 
-            loadDashboardData();
+      // Start session monitoring
+      setupSessionMonitoring(user.uid);
 
-          if (userSnap.exists()) {
+      loadDashboardData();
+
+      if (userSnap.exists()) {
             const data = userSnap.data();
             const userRole = data.role || "staff";
             window.appState.userRole = userRole;
