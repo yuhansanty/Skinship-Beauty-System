@@ -1415,9 +1415,29 @@ window.confirmCancellation = confirmCancellation;
         
         console.log("Loaded staff:", allStaff.length);
         
+        // Filter and populate available staff immediately
+        availableStaff = allStaff
+          .filter(user => user.role === "staff")
+          .map(user => ({
+            id: user.id,
+            fullName: user.fullName || "N/A",
+            isAbsent: user.isAbsent || false,
+            onLaunchBreak: user.onLaunchBreak || false,
+            isArchived: user.archived || false
+          }))
+          .filter(staff => !staff.isAbsent && !staff.onLaunchBreak && !staff.isArchived);
+        
+        console.log("Initial available staff:", availableStaff.length, availableStaff);
+        
+        // Update dropdown immediately with initial data
+        updateStaffDropdown();
+        
+        // Load available staff with real-time listener for future updates
+        console.log("About to call loadAvailableStaff from loadInitialData");
+        loadAvailableStaff();
+        
         populateServiceDropdown();
         populateServiceSelect();
-        populateStaffDropdown();
         renderTable();
         
         setupCustomersListener();
@@ -1619,6 +1639,7 @@ function monitorInventoryStatus() {
         if (customersListener) customersListener();
         if (inventoryListener) inventoryListener();
         if (purchaseOrderListener) purchaseOrderListener();
+        if (staffListener) staffListener();
         if (sessionMonitor) sessionMonitor();
         
         await signOut(auth);
@@ -1688,6 +1709,7 @@ window.addEventListener("beforeunload", async (e) => {
   if (customersListener) customersListener();
   if (inventoryListener) inventoryListener();
   if (purchaseOrderListener) purchaseOrderListener();
+  if (staffListener) staffListener();
   if (sessionMonitor) sessionMonitor(); 
   await handleClockOut();
 });
@@ -1777,6 +1799,10 @@ window.showToast = showToast;
     const itemsPerPage = 15;
     let totalPages = 1;
     let activeService = "All Services";
+
+    // Global variables for staff management
+    let availableStaff = [];
+    let staffListener = null;
 
     function updateEditButton() {
       const checkboxes = document.querySelectorAll('.customer-checkbox:checked');
@@ -1889,6 +1915,10 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
 
     async function openEditModalWithData(customer) {
       console.log('Opening edit modal with customer data:', customer);
+      console.log('Customer services:', customer.services);
+      console.log('Customer service (single):', customer.service);
+      console.log('Services type:', typeof customer.services);
+      console.log('Service type:', typeof customer.service);
       editMode = true;
       selectedCustomerId = customer.id;
       
@@ -1929,74 +1959,44 @@ showToast('Failed to update customer statuses. Please try again.', 'error');
       }
 
 await populateServiceSelect();
-populateStaffDropdown();
+
+// Get the current staff value before populating dropdown
+const staffValue = customer.staff || '';
+await populateStaffDropdown(staffValue);
 
 // Wait for dropdown to populate
-await new Promise(resolve => setTimeout(resolve, 200));
+await new Promise(resolve => setTimeout(resolve, 500));
 
-// Clear all previous selections
-clearServiceSelection();
+// Ensure service dropdown is populated before loading services
+console.log('Checking if service dropdown is ready...');
+let retryCount = 0;
+const maxRetries = 5;
 
-// Handle multiple services selection
-if (Array.isArray(customer.services) && customer.services.length > 0) {
-  console.log('Loading services:', customer.services);
+const waitForServicesAndLoad = () => {
+  const serviceOptions = document.querySelectorAll('.service-option');
+  console.log(`Attempt ${retryCount + 1}: Found ${serviceOptions.length} service options`);
   
-  customer.services.forEach(service => {
-    // Try multiple matching strategies
-    const serviceId = service.id || service.name;
-    
-    // Strategy 1: Match by service ID
-    let checkbox = document.querySelector(`input[data-service-id="${serviceId}"]`);
-    
-    // Strategy 2: Match by service name (case-insensitive)
-    if (!checkbox && service.name) {
-      const allOptions = document.querySelectorAll('.service-option');
-      allOptions.forEach(option => {
-        const optionName = option.dataset.serviceName;
-        if (optionName && service.name && 
-            optionName.toLowerCase().trim() === service.name.toLowerCase().trim()) {
-          checkbox = option.querySelector('input[type="checkbox"]');
-        }
-      });
-    }
-    
-    if (checkbox) {
-      checkbox.checked = true;
-      console.log('Selected service:', service.name);
-    } else {
-      console.warn('Could not find checkbox for service:', service);
-    }
-  });
-} else if (customer.service) {
-  // Handle old single service format (backward compatibility)
-  console.log('Loading single service:', customer.service);
-  
-  const allOptions = document.querySelectorAll('.service-option');
-  allOptions.forEach(option => {
-    const optionName = option.dataset.serviceName;
-    if (optionName && customer.service &&
-        optionName.toLowerCase().trim() === customer.service.toLowerCase().trim()) {
-      const checkbox = option.querySelector('input[type="checkbox"]');
-      if (checkbox) {
-        checkbox.checked = true;
-        console.log('Selected service:', customer.service);
-      }
-    }
-  });
-}
+  if (serviceOptions.length > 0) {
+    console.log('Service dropdown is ready, loading customer services...');
+    loadSelectedServices(customer);
+  } else if (retryCount < maxRetries) {
+    retryCount++;
+    console.log(`Service dropdown not ready, retrying in 200ms... (${retryCount}/${maxRetries})`);
+    setTimeout(waitForServicesAndLoad, 200);
+  } else {
+    console.error('Service dropdown failed to populate after maximum retries');
+  }
+};
 
-// Update the display
-updateSelectedServices();
+waitForServicesAndLoad();
 
       // Set status
       const statusValue = customer.status || 'Pending';
       console.log('Setting status to:', statusValue);
       document.getElementById('statusSelect').value = statusValue;
       
-      // Set employee/staff
-      const staffValue = customer.staff || '';
-      console.log('Setting staff to:', staffValue);
-      document.getElementById('employeeSelect').value = staffValue;
+      // Staff is already set in populateStaffDropdown function
+      console.log('Staff already set to:', customer.staff || '');
 
       // Handle date and time population
       if (customer.date && customer.time) {
@@ -2080,7 +2080,7 @@ updateSelectedServices();
       clearErrors();
       
       await populateServiceSelect();
-      populateStaffDropdown();
+      await populateStaffDropdown('');
     }
 
     
@@ -2210,18 +2210,29 @@ function updateSelectedServices() {
 
 function displaySelectedServices(services) {
   const display = document.getElementById('selectedServicesDisplay');
+  console.log('displaySelectedServices called with:', services);
+  console.log('Display element found:', !!display);
   
-  if (services.length === 0) {
-    display.innerHTML = '<span class="text-gray-400 text-sm">Select services...</span>';
+  if (!display) {
+    console.error('selectedServicesDisplay element not found!');
     return;
   }
   
-  display.innerHTML = services.map(service => `
+  if (services.length === 0) {
+    display.innerHTML = '<span class="text-gray-400 text-sm">Select services...</span>';
+    console.log('No services selected, showing placeholder');
+    return;
+  }
+  
+  const html = services.map(service => `
     <span class="service-tag">
       ${service.name}
       <span class="service-tag-remove" onclick="removeService('${service.id}', event)">×</span>
     </span>
   `).join('');
+  
+  display.innerHTML = html;
+  console.log('Updated display with services:', services.map(s => s.name));
 }
 
 function removeService(serviceId, event) {
@@ -2250,6 +2261,128 @@ function clearServiceSelection() {
     cb.checked = false;
   });
   updateSelectedServices();
+}
+
+// Function to load selected services for a customer in edit mode
+function loadSelectedServices(customer) {
+  console.log('=== loadSelectedServices called ===');
+  console.log('Customer:', customer);
+  console.log('Customer services:', customer.services);
+  console.log('Customer service:', customer.service);
+  console.log('Available service options count:', document.querySelectorAll('.service-option').length);
+  
+  // Clear all previous selections first
+  console.log('Clearing previous selections...');
+  clearServiceSelection();
+  
+  // Wait a bit for the clear to complete, then load services
+  setTimeout(() => {
+    console.log('Starting service loading process...');
+    console.log('Service options available:', document.querySelectorAll('.service-option').length);
+    
+    // Check if service dropdown is populated
+    const serviceOptions = document.querySelectorAll('.service-option');
+    console.log('Service options found:', serviceOptions.length);
+    if (serviceOptions.length === 0) {
+      console.error('No service options found! Service dropdown may not be populated yet.');
+      // Don't return, continue anyway to see what happens
+    }
+    
+    let servicesLoaded = false;
+    
+    // Handle multiple services (array format)
+    if (Array.isArray(customer.services) && customer.services.length > 0) {
+      console.log('Loading multiple services:', customer.services);
+      
+      customer.services.forEach(service => {
+        console.log('Processing service:', service);
+        
+        let checkbox = null;
+        
+        // Strategy 1: Match by service ID
+        if (service.id) {
+          checkbox = document.querySelector(`input[data-service-id="${service.id}"]`);
+          console.log('Strategy 1 - Match by ID:', service.id, 'Found:', !!checkbox);
+        }
+        
+        // Strategy 2: Match by service name (case-insensitive)
+        if (!checkbox && service.name) {
+          const allOptions = document.querySelectorAll('.service-option');
+          allOptions.forEach(option => {
+            const optionName = option.dataset.serviceName;
+            if (optionName && service.name && 
+                optionName.toLowerCase().trim() === service.name.toLowerCase().trim()) {
+              checkbox = option.querySelector('input[type="checkbox"]');
+              console.log('Strategy 2 - Match by name:', service.name, 'Found:', !!checkbox);
+            }
+          });
+        }
+        
+        // Strategy 3: If service is just a string, treat it as name
+        if (!checkbox && typeof service === 'string') {
+          const allOptions = document.querySelectorAll('.service-option');
+          allOptions.forEach(option => {
+            const optionName = option.dataset.serviceName;
+            if (optionName && optionName.toLowerCase().trim() === service.toLowerCase().trim()) {
+              checkbox = option.querySelector('input[type="checkbox"]');
+              console.log('Strategy 3 - Match string as name:', service, 'Found:', !!checkbox);
+            }
+          });
+        }
+        
+        if (checkbox) {
+          checkbox.checked = true;
+          servicesLoaded = true;
+          console.log('✓ Selected service:', service.name || service);
+        } else {
+          console.warn('✗ Could not find checkbox for service:', service);
+        }
+      });
+    }
+    
+    // Handle single service (backward compatibility)
+    else if (customer.service) {
+      console.log('Loading single service:', customer.service);
+      
+      let checkbox = null;
+      
+      // If service is an object with ID
+      if (typeof customer.service === 'object' && customer.service.id) {
+        checkbox = document.querySelector(`input[data-service-id="${customer.service.id}"]`);
+        console.log('Single service - Match by ID:', customer.service.id, 'Found:', !!checkbox);
+      }
+      
+      // If service is an object with name or just a string
+      const serviceName = typeof customer.service === 'object' ? customer.service.name : customer.service;
+      if (!checkbox && serviceName) {
+        const allOptions = document.querySelectorAll('.service-option');
+        allOptions.forEach(option => {
+          const optionName = option.dataset.serviceName;
+          if (optionName && optionName.toLowerCase().trim() === serviceName.toLowerCase().trim()) {
+            checkbox = option.querySelector('input[type="checkbox"]');
+            console.log('Single service - Match by name:', serviceName, 'Found:', !!checkbox);
+          }
+        });
+      }
+      
+      if (checkbox) {
+        checkbox.checked = true;
+        servicesLoaded = true;
+        console.log('✓ Selected single service:', serviceName);
+      } else {
+        console.warn('✗ Could not find checkbox for single service:', customer.service);
+      }
+    }
+    
+    // Update the display after loading services
+    updateSelectedServices();
+    
+    if (servicesLoaded) {
+      console.log('✓ Services loaded successfully');
+    } else {
+      console.log('No services found for customer:', customer);
+    }
+  }, 150); // Small delay to ensure DOM is ready
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -2310,18 +2443,97 @@ window.onclick = function(event) {
   }
 }
 
-function populateStaffDropdown() {
+// Function to load available staff from Firebase with real-time listener
+async function loadAvailableStaff() {
+  try {
+    console.log("Setting up staff listener...");
+    console.log("window.db available:", !!window.db);
+    
+    if (!window.db) {
+      console.error("Firebase db not available yet, retrying in 1 second...");
+      setTimeout(loadAvailableStaff, 1000);
+      return;
+    }
+    
+    // Set up real-time listener for staff changes
+    if (staffListener) {
+      staffListener(); // Unsubscribe previous listener
+    }
+
+    staffListener = onSnapshot(
+      query(collection(window.db, "users"), where("role", "==", "staff")),
+      (snapshot) => {
+        console.log("Staff snapshot received, size:", snapshot.size);
+        availableStaff = [];
+        
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          
+          const staffData = {
+            id: doc.id,
+            fullName: userData.fullName || "N/A",
+            isAbsent: userData.isAbsent || false,
+            onLaunchBreak: userData.onLaunchBreak || false,
+            isArchived: userData.archived || false
+          };
+          
+          // Only include staff who are not absent, not on break, and not archived
+          if (!staffData.isAbsent && !staffData.onLaunchBreak && !staffData.isArchived) {
+            availableStaff.push(staffData);
+          }
+        });
+        
+        console.log("Total available staff:", availableStaff.length, availableStaff);
+        
+        // Update the staff dropdown
+        updateStaffDropdown();
+      }, 
+      (error) => {
+        console.error("Error loading staff:", error);
+      }
+    );
+  } catch (error) {
+    console.error("Error setting up staff listener:", error);
+  }
+}
+
+// Function to update the staff dropdown using availableStaff array
+function updateStaffDropdown(currentStaffValue = '') {
   const employeeSelect = document.getElementById('employeeSelect');
+  if (!employeeSelect) {
+    console.error("employeeSelect element not found!");
+    return;
+  }
+  
+  const currentValue = currentStaffValue || employeeSelect.value; // Preserve current selection if still valid
+  
+  // Clear existing options except the first one
   employeeSelect.innerHTML = '<option value="">Select employee</option>';
   
-  // Add only Staff 1-3 options
-  const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
-  staffOptions.forEach(staffName => {
+  // Add available staff options
+  availableStaff.forEach(staff => {
     const option = document.createElement('option');
-    option.value = staffName;
-    option.textContent = staffName;
+    option.value = staff.fullName;
+    option.textContent = staff.fullName;
     employeeSelect.appendChild(option);
   });
+  
+  console.log("Updated staff dropdown with", availableStaff.length, "staff members");
+  
+  // Restore previous selection if still available
+  if (currentValue && availableStaff.some(staff => staff.fullName === currentValue)) {
+    employeeSelect.value = currentValue;
+    console.log('Set staff dropdown to:', currentValue);
+  } else if (currentValue) {
+    // If previously selected staff is no longer available, clear selection and show message
+    console.log(`Staff "${currentValue}" is no longer available`);
+    // Note: We don't show alert in customer.html as it might be disruptive during editing
+  }
+}
+
+async function populateStaffDropdown(currentStaffValue = '') {
+  // Use the updateStaffDropdown function which uses the real-time availableStaff array
+  updateStaffDropdown(currentStaffValue);
 }
 
     function formatTimeDisplay(timeStr) {

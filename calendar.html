@@ -1290,8 +1290,8 @@ window.confirmCancellation = confirmCancellation;
 
 async init() {
   this.bindEvents();
-  // await this.loadStaffOnce(); // No longer needed - using Staff 1-3
-  this.populateStaffDropdown(); // Call directly since it's now static
+  // await this.loadStaffOnce(); // No longer needed - using dynamic Firebase loading
+  await this.populateStaffDropdown(); // Load staff dynamically from Firebase
   this.setupServicesListener();
   this.setupCustomersListener();
   this.renderCalendar();
@@ -1311,18 +1311,48 @@ async init() {
         }
       }
 
-populateStaffDropdown() {
+async populateStaffDropdown() {
   const employeeSelect = document.getElementById('employeeSelect');
   employeeSelect.innerHTML = '<option value="">Select employee</option>';
   
-  // Add only Staff 1-3 options
-  const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
-  staffOptions.forEach(staffName => {
-    const option = document.createElement('option');
-    option.value = staffName;
-    option.textContent = staffName;
-    employeeSelect.appendChild(option);
-  });
+  try {
+    // Load available staff from Firebase
+    const staffQuery = query(
+      collection(this.db, "users"),
+      where("role", "==", "staff")
+    );
+    
+    const staffSnapshot = await getDocs(staffQuery);
+    
+    staffSnapshot.forEach((doc) => {
+      const userData = doc.data();
+      const staffData = {
+        id: doc.id,
+        fullName: userData.fullName || "N/A",
+        isAbsent: userData.isAbsent || false,
+        onLaunchBreak: userData.onLaunchBreak || false,
+        isArchived: userData.archived || false
+      };
+      
+      // Only include staff who are not absent, not on break, and not archived
+      if (!staffData.isAbsent && !staffData.onLaunchBreak && !staffData.isArchived) {
+        const option = document.createElement('option');
+        option.value = staffData.fullName;
+        option.textContent = staffData.fullName;
+        employeeSelect.appendChild(option);
+      }
+    });
+  } catch (error) {
+    console.error("Error loading staff:", error);
+    // Fallback to static options if Firebase fails
+    const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
+    staffOptions.forEach(staffName => {
+      const option = document.createElement('option');
+      option.value = staffName;
+      option.textContent = staffName;
+      employeeSelect.appendChild(option);
+    });
+  }
 }
 
       setupServicesListener() {
