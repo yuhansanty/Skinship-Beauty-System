@@ -482,7 +482,7 @@ ${staff.role !== 'admin' && !staff.isArchived ? `
             <i class="fa-solid fa-${staff.onLaunchBreak ? 'play' : 'utensils'}"></i>
             ${staff.onLaunchBreak ? 'End Break' : 'Launch Break'}
           </button>
-          <button class="btn btn-absent ${staff.isAbsent ? 'active' : ''}" data-staff-id="${staff.id}" data-absent-status="${staff.isAbsent || false}">
+          <button class="btn btn-absent admin-only ${staff.isAbsent ? 'active' : ''}" data-staff-id="${staff.id}" data-absent-status="${staff.isAbsent || false}">
             <i class="fa-solid fa-${staff.isAbsent ? 'user-check' : 'user-xmark'}"></i>
             ${staff.isAbsent ? 'Mark Present' : 'Mark Absent'}
           </button>
@@ -511,8 +511,16 @@ document.addEventListener('click', (e) => {
     toggleLaunchBreak(staffId, currentBreakStatus);
   }
   
-  if (e.target.closest('.btn-absent')) {
+if (e.target.closest('.btn-absent')) {
     const button = e.target.closest('.btn-absent');
+    
+    // Check if user has admin role
+    const currentUserRole = localStorage.getItem('currentUserRole');
+    if (currentUserRole !== 'admin') {
+      showToast('Only administrators can mark staff as absent', 'error');
+      return;
+    }
+    
     const staffId = button.getAttribute('data-staff-id');
     const currentAbsentStatus = button.getAttribute('data-absent-status') === 'true';
     
