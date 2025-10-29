@@ -604,12 +604,33 @@ async function toggleAbsent(staffId, currentAbsentStatus) {
   pendingAbsentStaffId = staffId;
   pendingAbsentStatus = newAbsentStatus;
   
+  // Check for active reservations if marking as absent
+  let hasActiveReservations = false;
+  let reservationCount = 0;
+  
+  if (newAbsentStatus) {
+    try {
+      const reservationsQuery = query(
+        collection(db, "reservations"),
+        where("staffId", "==", staffId),
+        where("status", "in", ["pending", "confirmed"])
+      );
+      
+      const reservationsSnapshot = await getDocs(reservationsQuery);
+      reservationCount = reservationsSnapshot.size;
+      hasActiveReservations = reservationCount > 0;
+    } catch (error) {
+      console.error("Error checking reservations:", error);
+    }
+  }
+  
   // Update modal content based on action
   const modal = document.getElementById('absentModal');
   const title = document.getElementById('absentModalTitle');
   const message = document.getElementById('absentModalMessage');
   const warning = document.getElementById('absentWarning');
   const success = document.getElementById('absentSuccess');
+  const reservationWarning = document.getElementById('reservationWarning');
   const iconContainer = document.getElementById('absentIconContainer');
   const confirmBtn = document.getElementById('confirmAbsentBtn');
   const staffNameSpan = document.getElementById('absentStaffName');
@@ -622,6 +643,16 @@ async function toggleAbsent(staffId, currentAbsentStatus) {
     message.textContent = 'Are you sure you want to mark this staff member as ABSENT?';
     warning.style.display = 'flex';
     success.style.display = 'none';
+    
+    // Show/hide reservation warning
+    if (hasActiveReservations) {
+      reservationWarning.style.display = 'flex';
+      const reservationCountSpan = document.getElementById('reservationCount');
+      reservationCountSpan.textContent = reservationCount;
+    } else {
+      reservationWarning.style.display = 'none';
+    }
+    
     iconContainer.innerHTML = '<i class="fa-solid fa-user-xmark"></i>';
     iconContainer.style.background = 'linear-gradient(135deg, #fecaca 0%, #ef4444 100%)';
     confirmBtn.innerHTML = '<i class="fa-solid fa-user-xmark"></i> Mark Absent';
@@ -632,6 +663,7 @@ async function toggleAbsent(staffId, currentAbsentStatus) {
     message.textContent = 'Are you sure you want to mark this staff member as PRESENT?';
     warning.style.display = 'none';
     success.style.display = 'flex';
+    reservationWarning.style.display = 'none';
     iconContainer.innerHTML = '<i class="fa-solid fa-user-check"></i>';
     iconContainer.style.background = 'linear-gradient(135deg, #d1fae5 0%, #10b981 100%)';
     confirmBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> Mark Present';

@@ -123,43 +123,53 @@
   </div>
 
 <!-- Absent Confirmation Modal -->
-  <div class="modal-overlay" id="absentModal">
-    <div class="absent-modal">
-      <div class="absent-modal-header">
-        <div class="absent-icon" id="absentIconContainer">
-          <i class="fa-solid fa-user-xmark"></i>
-        </div>
-        <h2 id="absentModalTitle">Mark as Absent</h2>
-        <p id="absentModalMessage">Are you sure you want to mark this staff member as ABSENT?</p>
+<div class="modal-overlay" id="absentModal">
+  <div class="absent-modal">
+    <div class="absent-modal-header">
+      <div class="absent-icon" id="absentIconContainer">
+        <i class="fa-solid fa-user-xmark"></i>
       </div>
+      <h2 id="absentModalTitle">Mark as Absent</h2>
+      <p id="absentModalMessage">Are you sure you want to mark this staff member as ABSENT?</p>
+    </div>
 
-      <div class="absent-modal-body">
-        <div class="absent-warning" id="absentWarning">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <span>They will be marked absent and unavailable even if they log in.</span>
-        </div>
-        <div class="absent-success" id="absentSuccess" style="display: none;">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>They will be able to become available again.</span>
-        </div>
-        <div class="absent-info-item">
-          <i class="fa-solid fa-user"></i>
-          <span id="absentStaffName">Staff Name</span>
+    <div class="absent-modal-body">
+      <div class="absent-warning" id="absentWarning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>They will be marked absent and unavailable even if they log in.</span>
+      </div>
+      
+      <!-- NEW: Reservation Warning -->
+      <div class="reservation-warning" id="reservationWarning" style="display: none;">
+        <i class="fa-solid fa-calendar-xmark"></i>
+        <div>
+          <span class="reservation-warning-title">Active Reservations Found!</span>
+          <span class="reservation-warning-text">This staff has <strong id="reservationCount">0</strong> active reservation(s). Consider reassigning or canceling them first.</span>
         </div>
       </div>
-
-      <div class="absent-modal-actions">
-        <button class="absent-btn absent-btn-cancel" onclick="hideAbsentModal()">
-          <i class="fa-solid fa-xmark"></i>
-          Cancel
-        </button>
-        <button class="absent-btn absent-btn-confirm" id="confirmAbsentBtn" onclick="confirmAbsentToggle()">
-          <i class="fa-solid fa-user-xmark"></i>
-          Mark Absent
-        </button>
+      
+      <div class="absent-success" id="absentSuccess" style="display: none;">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>They will be able to become available again.</span>
+      </div>
+      <div class="absent-info-item">
+        <i class="fa-solid fa-user"></i>
+        <span id="absentStaffName">Staff Name</span>
       </div>
     </div>
+
+    <div class="absent-modal-actions">
+      <button class="absent-btn absent-btn-cancel" onclick="hideAbsentModal()">
+        <i class="fa-solid fa-xmark"></i>
+        Cancel
+      </button>
+      <button class="absent-btn absent-btn-confirm" id="confirmAbsentBtn" onclick="confirmAbsentToggle()">
+        <i class="fa-solid fa-user-xmark"></i>
+        Mark Absent
+      </button>
+    </div>
   </div>
+</div>
 
   <script type="module" src="staff.js"></script>
 
