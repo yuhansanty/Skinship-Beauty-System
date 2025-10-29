@@ -276,6 +276,17 @@ body.role-staff .sidebar-btn[data-page="cashier"] {
   margin-top: 1.5rem;
 }
 
+/* Make launch break button full width when absent button is hidden for staff */
+body.role-staff .staff-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+body.role-admin .staff-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
 .btn {
   flex: 1;
   padding: 0.75rem 1.25rem;
@@ -948,6 +959,45 @@ body.role-staff .sidebar-btn[data-page="cashier"] {
 .absent-btn-cancel {
   background: #e5e7eb;
   color: var(--text-primary);
+}
+
+/* Role-based button restrictions */
+body.role-staff .btn-absent[data-role-restricted="admin"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+body.role-staff .btn-absent[data-role-restricted="admin"]:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+}
+
+body.role-staff .btn-absent[data-role-restricted="admin"]::after {
+  content: '🔒 Admin Only';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition);
+  margin-bottom: 8px;
+}
+
+body.role-staff .btn-absent[data-role-restricted="admin"]:hover::after {
+  opacity: 1;
+}
+
+/* Hide admin-only buttons for staff */
+body.role-staff .admin-only {
+  display: none !important;
 }
 
 /* Toast Notification Styles */
