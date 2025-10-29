@@ -1620,27 +1620,101 @@ if (currentProductMode === 'new') {
 }
 
 try {
-  if (editingIndex === -1) {
-    await db.collection('purchaseOrders').add(formData);
-    
-    // Show appropriate success message based on quantity
-    if (currentProductMode === 'new' && quantity === 0) {
-      showToast(`✅ Purchase Order Created! Product: ${productData.productName}, Quantity: 0 units (Product template). This product will be added to inventory with "Out of Stock" status.`, 'success');
+    if (editingIndex === -1) {
+      // Create new purchase order
+      const poRef = await db.collection('purchaseOrders').add(formData);
+      console.log('✅ Purchase Order created:', poRef.id);
+      
+      // ===== CREATE INVOICE FOR NEW PO =====
+      try {
+        const invoiceNumber = await generateInvoiceNumber();
+        const invoiceData = {
+          invoiceNumber: invoiceNumber,
+          purchaseOrderId: poRef.id,
+          purchaseOrderNumber: formData.id,
+          date: formData.date,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          supplier: formData.supplier,
+          productName: productData.productName,
+          productId: productData.productId,
+          category: productData.category,
+          quantity: quantity,
+          unitPrice: productData.unitPrice,
+          totalValue: totalValue,
+          status: 'pending',
+          createdBy: currentUser ? currentUser.fullName : 'System',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await db.collection('invoices').add(invoiceData);
+        console.log('✅ Invoice created:', invoiceNumber);
+      } catch (invoiceError) {
+        console.error('❌ Error creating invoice:', invoiceError);
+        // Don't fail the whole operation if invoice creation fails
+      }
+      // ===== END INVOICE CREATION =====
+      
+      // Show appropriate success message
+      if (currentProductMode === 'new' && quantity === 0) {
+        showToast(`✅ Purchase Order & Invoice Created! Product: ${productData.productName}, Quantity: 0 units (Product template). This product will be added to inventory with "Out of Stock" status.`, 'success');
+      } else {
+        showToast('✅ Purchase order and invoice created successfully!', 'success');
+      }
     } else {
-      showToast('✅ Purchase order created successfully!', 'success');
+      const po = purchaseOrders[editingIndex];
+      await db.collection('purchaseOrders').doc(po.firebaseId).update(formData);
+      showToast('✅ Purchase order updated successfully!', 'success');
     }
-  } else {
-    const po = purchaseOrders[editingIndex];
-    await db.collection('purchaseOrders').doc(po.firebaseId).update(formData);
-    showToast('✅ Purchase order updated successfully!', 'success');
-  }
 
-  closePOModal();
-} catch (error) {
-  console.error('Error saving purchase order:', error);
-  showToast('Error saving purchase order. Please try again.', 'error');
-}
+    closePOModal();
+  } catch (error) {
+    console.error('Error saving purchase order:', error);
+    showToast('Error saving purchase order. Please try again.', 'error');
+  }
 });
+
+// Generate unique invoice number - reuse counter logic
+let invoiceCounterCache = null;
+let lastInvoiceCounterFetch = 0;
+const INVOICE_COUNTER_CACHE_DURATION = 60000; // 1 minute
+
+async function generateInvoiceNumber() {
+  try {
+    const now = Date.now();
+    
+    // Use cache if available and recent
+    if (invoiceCounterCache !== null && (now - lastInvoiceCounterFetch) < INVOICE_COUNTER_CACHE_DURATION) {
+      invoiceCounterCache++;
+      db.collection('metadata').doc('invoiceCounter').update({ last: invoiceCounterCache });
+      return `INV-${String(invoiceCounterCache).padStart(3, '0')}`;
+    }
+    
+    // Get fresh counter from database
+    const counterRef = db.collection('metadata').doc('invoiceCounter');
+    let newNumber = 1;
+
+    await db.runTransaction(async (tx) => {
+      const docSnap = await tx.get(counterRef);
+      if (docSnap.exists) {
+        newNumber = (docSnap.data().last || 0) + 1;
+        tx.update(counterRef, { last: newNumber });
+      } else {
+        tx.set(counterRef, { last: 1 });
+        newNumber = 1;
+      }
+    });
+
+    // Update cache
+    invoiceCounterCache = newNumber;
+    lastInvoiceCounterFetch = now;
+
+    return `INV-${String(newNumber).padStart(3, '0')}`;
+  } catch (error) {
+    console.error('Error generating invoice number:', error);
+    return `INV-${Date.now().toString().slice(-3)}`;
+  }
+}
 
 function renderTable() {
   const tbody = document.getElementById('poTableBody');
@@ -2067,15 +2141,39 @@ showToast('⚠️ Error: Product not found in inventory and no new product data 
       }
     }
 
-    await db.collection('purchaseOrders').doc(po.firebaseId).update({
+await db.collection('purchaseOrders').doc(po.firebaseId).update({
       status: 'received',
       receivedDate: getCurrentDate(),
       receivedBy: currentUser ? currentUser.fullName : 'Unknown'
     });
 
+    // ===== ADD THIS SECTION HERE =====
+    // Update corresponding invoice status
+    try {
+      const invoiceQuery = await db.collection('invoices')
+        .where('purchaseOrderId', '==', po.firebaseId)
+        .limit(1)
+        .get();
+      
+      if (!invoiceQuery.empty) {
+        const invoiceDoc = invoiceQuery.docs[0];
+        await db.collection('invoices').doc(invoiceDoc.id).update({
+          status: 'received',
+          receivedDate: getCurrentDate(),
+          receivedBy: currentUser ? currentUser.fullName : 'Unknown',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`✅ Invoice ${invoiceDoc.data().invoiceNumber} status updated to received`);
+      }
+    } catch (invoiceError) {
+      console.error('Error updating invoice status:', invoiceError);
+      // Don't show error to user - PO is already processed
+    }
+    // ===== END OF ADDITION =====
+
   } catch (error) {
     console.error('Error processing order:', error);
-showToast('Error processing the order. Please try again.', 'error');
+    showToast('Error processing the order. Please try again.', 'error');
   }
 }
 
@@ -2083,7 +2181,6 @@ document.querySelectorAll('button[title="Delete"]').forEach((btn, i) => {
 });
 
 async function deletePO(index) {
-  
   const po = purchaseOrders[index];
   
   if (!po) {
@@ -2092,7 +2189,6 @@ async function deletePO(index) {
     return;
   }
   
-  // Show confirmation modal instead of browser confirm
   const confirmed = await showDeleteConfirmationModal(po);
   
   if (!confirmed) {
@@ -2100,9 +2196,21 @@ async function deletePO(index) {
   }
 
   try {
+    // Delete corresponding invoice first
+    const invoiceQuery = await db.collection('invoices')
+      .where('purchaseOrderId', '==', po.firebaseId)
+      .limit(1)
+      .get();
+    
+    if (!invoiceQuery.empty) {
+      await db.collection('invoices').doc(invoiceQuery.docs[0].id).delete();
+      console.log(`✅ Invoice deleted for PO: ${po.id}`);
+    }
+    
+    // Then delete the purchase order
     await db.collection('purchaseOrders').doc(po.firebaseId).delete();
     
-    showToast('Purchase order deleted successfully!', 'success');
+    showToast('Purchase order and invoice deleted successfully!', 'success');
   } catch (error) {
     console.error('Error deleting purchase order:', error);
     showToast('Error deleting purchase order. Please try again.', 'error');

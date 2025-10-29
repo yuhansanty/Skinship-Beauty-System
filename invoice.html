@@ -888,97 +888,48 @@ function setupSessionMonitoring(userId) {
   });
 }
 
-    // Listen to Purchase Orders and auto-create/update invoices - OPTIMIZED
-    function listenToPurchaseOrders() {
-      purchaseOrdersListener = db.collection('purchaseOrders')
-        .where('status', 'in', ['pending', 'received'])
-        .onSnapshot(async (snapshot) => {
-          const batch = db.batch();
-          let batchCount = 0;
-          const MAX_BATCH_SIZE = 500;
-          
-          // Update purchase order bubble
-          const pendingCount = snapshot.docs.filter(doc => doc.data().status === 'pending').length;
-          updatePurchaseOrderBubble(pendingCount);
-          
-          for (const change of snapshot.docChanges()) {
-            if (change.type === 'added' || change.type === 'modified') {
-              const poData = change.doc.data();
-              const poId = change.doc.id;
-              
-              if (processedPOs.has(poId)) {
-                if (change.type === 'modified') {
-                  const existingInvoice = invoices.find(inv => inv.purchaseOrderId === poId);
-                  if (existingInvoice && existingInvoice.status !== poData.status) {
-                    batch.update(db.collection('invoices').doc(existingInvoice.id), {
-                      status: poData.status,
-                      receivedDate: poData.receivedDate || null,
-                      receivedBy: poData.receivedBy || null
-                    });
-                    batchCount++;
-                  }
-                }
-                continue;
-              }
-              
-              let existingInvoice = invoices.find(inv => inv.purchaseOrderId === poId);
-              
-              if (!existingInvoice) {
-                const existingInvoiceQuery = await db.collection('invoices')
-                  .where('purchaseOrderId', '==', poId)
-                  .limit(1)
-                  .get();
-                
-                if (existingInvoiceQuery.empty) {
-                  const invoiceData = await prepareInvoiceData(poData, poId);
-                  const newInvoiceRef = db.collection('invoices').doc();
-                  batch.set(newInvoiceRef, invoiceData);
-                  batchCount++;
-                  processedPOs.add(poId);
-                } else {
-                  processedPOs.add(poId);
-                }
-              }
-            }
-          }
-          
-          if (batchCount > 0 && batchCount < MAX_BATCH_SIZE) {
-            try {
-              await batch.commit();
-              console.log(`Batch updated ${batchCount} invoices`);
-            } catch (error) {
-              console.error('Error committing batch:', error);
-            }
-          }
-        }, (error) => {
-          console.error('Error listening to purchase orders:', error);
-        });
-    }
+function listenToPurchaseOrders() {
+  // Just monitor for pending count - status sync happens in purchase-order.js
+  purchaseOrdersListener = db.collection('purchaseOrders')
+    .onSnapshot((snapshot) => {
+      const pendingCount = snapshot.docs.filter(doc => doc.data().status === 'pending').length;
+      updatePurchaseOrderBubble(pendingCount);
+    }, (error) => {
+      console.error('Error listening to purchase orders:', error);
+    });
+}
 
-    // Prepare invoice data - separated for reusability
-    async function prepareInvoiceData(poData, poId) {
-      const invoiceNumber = await generateInvoiceNumber();
-      const now = new Date();
-      
-      return {
-        invoiceNumber: invoiceNumber,
-        purchaseOrderId: poId,
-        purchaseOrderNumber: poData.id,
-        date: poData.date || now.toISOString().split('T')[0],
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        supplier: poData.supplier || 'N/A',
-        productName: poData.productName || 'N/A',
-        productId: poData.productId || 'N/A',
-        category: poData.category || 'N/A',
-        quantity: poData.quantity || 0,
-        unitPrice: poData.unitPrice || 0,
-        totalValue: poData.totalValue || 0,
-        status: poData.status || 'pending',
-        createdBy: poData.receivedBy || currentUser?.fullName || 'System',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        receivedDate: poData.receivedDate || getCurrentDate()
-      };
-    }
+async function prepareInvoiceData(poData, poId) {
+  const invoiceNumber = await generateInvoiceNumber();
+  const now = new Date();
+  
+  const invoiceData = {
+    invoiceNumber: invoiceNumber,
+    purchaseOrderId: poId,
+    purchaseOrderNumber: poData.id,
+    date: poData.date || now.toISOString().split('T')[0],
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    supplier: poData.supplier || 'N/A',
+    productName: poData.productName || 'N/A',
+    productId: poData.productId || 'N/A',
+    category: poData.category || 'N/A',
+    quantity: poData.quantity || 0,
+    unitPrice: poData.unitPrice || 0,
+    totalValue: poData.totalValue || 0,
+    status: poData.status || 'pending',
+    createdBy: poData.createdBy || currentUser?.fullName || 'System',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  
+  // Only add received fields if status is received
+  if (poData.status === 'received') {
+    invoiceData.receivedDate = poData.receivedDate || getCurrentDate();
+    invoiceData.receivedBy = poData.receivedBy || currentUser?.fullName || 'Admin';
+  }
+  
+  return invoiceData;
+}
 
     // Generate unique invoice number - OPTIMIZED with caching
     let invoiceCounterCache = null;
@@ -1026,38 +977,45 @@ function setupSessionMonitoring(userId) {
       return today.toLocaleDateString('en-US', options);
     }
 
-    // Load invoices from Firebase - OPTIMIZED with real-time listener
-    function loadInvoices() {
-      invoicesListener = db.collection('invoices')
-        .orderBy('timestamp', 'desc')
-        .onSnapshot((snapshot) => {
-          snapshot.docChanges().forEach((change) => {
-            const invoice = change.doc.data();
-            invoice.id = change.doc.id;
-            
-            if (change.type === 'added') {
-              invoices.push(invoice);
-            } else if (change.type === 'modified') {
-              const index = invoices.findIndex(inv => inv.id === invoice.id);
-              if (index !== -1) {
-                invoices[index] = invoice;
-              }
-            } else if (change.type === 'removed') {
-              const index = invoices.findIndex(inv => inv.id === invoice.id);
-              if (index !== -1) {
-                invoices.splice(index, 1);
-              }
-            }
-          });
-          
-          updateStats();
-          renderInvoiceTable();
-        }, (error) => {
-          console.error('Error loading invoices:', error);
-          document.getElementById('invoiceTableBody').innerHTML = 
-            '<tr><td colspan="9" class="text-center py-8 text-red-500">Error loading invoices. Please refresh the page.</td></tr>';
-        });
-    }
+// Load invoices from Firebase - OPTIMIZED with real-time listener
+function loadInvoices() {
+  invoicesListener = db.collection('invoices')
+    .orderBy('timestamp', 'desc')
+    .onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const invoice = change.doc.data();
+        invoice.id = change.doc.id;
+        
+        if (change.type === 'added') {
+          // Check if it already exists in array (to prevent duplicates)
+          const existingIndex = invoices.findIndex(inv => inv.id === invoice.id);
+          if (existingIndex === -1) {
+            invoices.push(invoice);
+            console.log('Invoice added to array:', invoice.invoiceNumber);
+          }
+        } else if (change.type === 'modified') {
+          const index = invoices.findIndex(inv => inv.id === invoice.id);
+          if (index !== -1) {
+            invoices[index] = invoice;
+            console.log('Invoice updated in array:', invoice.invoiceNumber, 'Status:', invoice.status);
+          }
+        } else if (change.type === 'removed') {
+          const index = invoices.findIndex(inv => inv.id === invoice.id);
+          if (index !== -1) {
+            const removed = invoices.splice(index, 1);
+            console.log('Invoice removed from array:', removed[0]?.invoiceNumber);
+          }
+        }
+      });
+      
+      updateStats();
+      renderInvoiceTable();
+    }, (error) => {
+      console.error('Error loading invoices:', error);
+      document.getElementById('invoiceTableBody').innerHTML = 
+        '<tr><td colspan="9" class="text-center py-8 text-red-500">Error loading invoices. Please refresh the page.</td></tr>';
+    });
+}
 
     // Update statistics - calculate from memory
     function updateStats() {

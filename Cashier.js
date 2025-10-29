@@ -649,27 +649,74 @@ function filterCustomers() {
   dropdown.classList.remove('hidden');
 }
 
-function selectCustomer(customerId) {
+// ==================== CUSTOM CONFIRMATION MODAL ====================
+
+let confirmationModalResolver = null;
+
+function showConfirmationModal(title, message) {
+  return new Promise((resolve) => {
+    confirmationModalResolver = resolve;
+    
+    const modal = document.getElementById('confirmationModal');
+    const titleElement = document.getElementById('confirmationTitle');
+    const messageElement = document.getElementById('confirmationMessage');
+    
+    if (titleElement) titleElement.textContent = title;
+    if (messageElement) messageElement.textContent = message;
+    
+    if (modal) {
+      modal.classList.add('show');
+    }
+  });
+}
+
+function hideConfirmationModal(confirmed) {
+  const modal = document.getElementById('confirmationModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+  
+  if (confirmationModalResolver) {
+    confirmationModalResolver(confirmed);
+    confirmationModalResolver = null;
+  }
+}
+
+// Make functions globally accessible
+window.showConfirmationModal = showConfirmationModal;
+window.hideConfirmationModal = hideConfirmationModal;
+
+async function selectCustomer(customerId) {
   const customer = confirmedCustomers.find(c => c.id === customerId);
   if (!customer) return;
   
-  if (selectedCustomerId && selectedCustomerId !== customerId && cart.length > 0) {
-    if (!confirm('⚠️ Switching customers will clear your current cart.\n\nDo you want to continue?')) {
-      document.getElementById('customerDropdown').classList.add('hidden');
-      return;
-    }
-    cart = [];
-    updateCart();
-  }
+if (selectedCustomerId && selectedCustomerId !== customerId && cart.length > 0) {
+  const confirmed = await showConfirmationModal(
+    'Switch Customer?',
+    '⚠️ Switching customers will clear your current cart.\n\nDo you want to continue?'
+  );
   
-  if (!selectedCustomerId && cart.length > 0 && customerId) {
-    if (!confirm('⚠️ You have items in cart.\n\nDo you want to clear the cart and load this customer?')) {
-      document.getElementById('customerDropdown').classList.add('hidden');
-      return;
-    }
-    cart = [];
-    updateCart();
+  if (!confirmed) {
+    document.getElementById('customerDropdown').classList.add('hidden');
+    return;
   }
+  cart = [];
+  updateCart();
+}
+
+if (!selectedCustomerId && cart.length > 0 && customerId) {
+  const confirmed = await showConfirmationModal(
+    'You Have Items in Cart',
+    '⚠️ You have items in cart.\n\nDo you want to clear the cart and load this customer?'
+  );
+  
+  if (!confirmed) {
+    document.getElementById('customerDropdown').classList.add('hidden');
+    return;
+  }
+  cart = [];
+  updateCart();
+}
   
   selectedCustomerId = customerId;
   
@@ -685,11 +732,16 @@ function selectCustomer(customerId) {
     validatePhoneNumber(phoneInput);
   }
 
-  if (customer.services && customer.services.length > 0) {
-    const serviceCount = customer.services.length;
-    const serviceText = serviceCount === 1 ? 'service' : 'services';
-    
-    if (confirm(`Add ${serviceCount} ${serviceText} from this appointment to cart?`)) {
+if (customer.services && customer.services.length > 0) {
+  const serviceCount = customer.services.length;
+  const serviceText = serviceCount === 1 ? 'service' : 'services';
+  
+  const confirmed = await showConfirmationModal(
+    'Add Services to Cart?',
+    `Add ${serviceCount} ${serviceText} from this appointment to cart?`
+  );
+  
+  if (confirmed) {
       
       let addedCount = 0;
       let notFoundServices = [];

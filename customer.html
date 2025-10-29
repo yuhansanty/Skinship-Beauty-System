@@ -775,6 +775,8 @@
     </button>
   </aside>
 
+  <div class="dropdown-content" id="serviceFilterDropdown"></div>
+
   <!-- Main Content -->
   <main class="flex-1 flex flex-col items-center justify-start p-8 w-full ml-20">
     <div class="w-full bg-white rounded-3xl shadow-lg p-8 relative h-full">
@@ -902,11 +904,18 @@
         </div>
         
 <div class="form-row">
-  <label class="form-label">Service *</label>
-  <select class="form-input" id="service" name="service" required>
-    <option value="">Select a service</option>
-  </select>
-  <span class="error-message" id="serviceError">Please select a service</span>
+  <label class="form-label">Services *</label>
+  <div class="relative">
+    <div id="serviceSelectContainer" class="form-input min-h-[42px] cursor-pointer bg-white" style="padding: 10px 15px;">
+      <div id="selectedServicesDisplay" class="flex flex-wrap gap-2">
+        <span class="text-gray-400 text-sm">Select services...</span>
+      </div>
+    </div>
+<div id="serviceModalDropdown" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-64 overflow-y-auto" style="border: 1px solid #d1d5db; border-radius: 6px;">
+  <!-- Services will be populated here -->
+</div>
+  </div>
+  <span class="error-message" id="serviceError">Please select at least one service</span>
 </div>
 
         <div class="form-row">
@@ -1923,29 +1932,61 @@ await populateServiceSelect();
 populateStaffDropdown();
 
 // Wait for dropdown to populate
-await new Promise(resolve => setTimeout(resolve, 100));
+await new Promise(resolve => setTimeout(resolve, 200));
 
-// Handle service selection with simple select dropdown
-const customerService = customer.service;
-console.log('Customer service data:', customerService);
+// Clear all previous selections
+clearServiceSelection();
 
-if (customerService) {
-  // Wait for service dropdown to be populated
-  await new Promise(resolve => setTimeout(resolve, 200));
+// Handle multiple services selection
+if (Array.isArray(customer.services) && customer.services.length > 0) {
+  console.log('Loading services:', customer.services);
   
-  const serviceSelect = document.getElementById('service');
-  if (serviceSelect) {
-    // Set the selected service value
-    serviceSelect.value = customerService;
-    console.log('Set service to:', customerService);
+  customer.services.forEach(service => {
+    // Try multiple matching strategies
+    const serviceId = service.id || service.name;
     
-    // If exact match not found, log available options for debugging
-    if (serviceSelect.value !== customerService) {
-      console.log('Service not found in dropdown:', customerService);
-      console.log('Available services:', Array.from(serviceSelect.options).map(opt => opt.value));
+    // Strategy 1: Match by service ID
+    let checkbox = document.querySelector(`input[data-service-id="${serviceId}"]`);
+    
+    // Strategy 2: Match by service name (case-insensitive)
+    if (!checkbox && service.name) {
+      const allOptions = document.querySelectorAll('.service-option');
+      allOptions.forEach(option => {
+        const optionName = option.dataset.serviceName;
+        if (optionName && service.name && 
+            optionName.toLowerCase().trim() === service.name.toLowerCase().trim()) {
+          checkbox = option.querySelector('input[type="checkbox"]');
+        }
+      });
     }
-  }
+    
+    if (checkbox) {
+      checkbox.checked = true;
+      console.log('Selected service:', service.name);
+    } else {
+      console.warn('Could not find checkbox for service:', service);
+    }
+  });
+} else if (customer.service) {
+  // Handle old single service format (backward compatibility)
+  console.log('Loading single service:', customer.service);
+  
+  const allOptions = document.querySelectorAll('.service-option');
+  allOptions.forEach(option => {
+    const optionName = option.dataset.serviceName;
+    if (optionName && customer.service &&
+        optionName.toLowerCase().trim() === customer.service.toLowerCase().trim()) {
+      const checkbox = option.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = true;
+        console.log('Selected service:', customer.service);
+      }
+    }
+  });
 }
+
+// Update the display
+updateSelectedServices();
 
       // Set status
       const statusValue = customer.status || 'Pending';
@@ -2042,6 +2083,8 @@ if (customerService) {
       populateStaffDropdown();
     }
 
+    
+
 function clearForm() {
   document.getElementById('customerName').value = '';
   document.getElementById('customerEmail').value = '';
@@ -2062,172 +2105,107 @@ function clearErrors() {
   });
 }
 
-    function populateServiceDropdown() {
-      serviceDropdown.innerHTML = '';
-      
-      const allOption = document.createElement('a');
-      allOption.className = 'dropdown-item selected';
-      allOption.textContent = 'All Services';
-      allOption.onclick = (event) => selectService('All Services', event);
-      serviceDropdown.appendChild(allOption);
-      
-      const categories = Array.from(window.servicesCache.byCategory.keys()).sort();
-      
-      categories.forEach(category => {
-        const item = document.createElement('a');
-        item.className = 'dropdown-item';
-        item.textContent = category;
-        item.onclick = (event) => selectService(category, event);
-        serviceDropdown.appendChild(item);
-      });
-    }
-
 function populateServiceSelect() {
-  // Replace the multi-select dropdown with a simple select dropdown like contact.html
-  const serviceSelect = document.getElementById('service');
-  if (!serviceSelect) return;
+  const serviceDropdown = document.getElementById('serviceModalDropdown');
+  if (!serviceDropdown) return;
   
-  const services = {
-    "FLEEK EYELASH": [
-      "EYELASH NATURAL (1 SIZE) P 499",
-      "EYELASH NATURAL VOLUME P 599",
-      "EYELASH DOLL EYE (2 SIZE) P 599",
-      "EYELASH CAT EYE (3 SIZE) P 699",
-      "WISPY NATURAL P 699",
-      "WISPY VOLUME P 799",
-      "EYELASH REMOVAL IN 100/ OUT 200",
-      "LASH LIFT P499 WITH TINT P 599"
-    ],
-    "BROWMAZING": [
-      "THREADING P 200",
-      "SHAVING P 150",
-      "BROWLAMINATION P 499 WITH TINT P 699",
-      "BROWWAXING P 249"
-    ],
-    "WOKE UP LIKE THIS": [
-      "MICROBLADING P 1,499 (2 SESSIONS)",
-      "COMBI/OMBRE/COMBIBROWS P 2,499 (2 SESSIONS)",
-      "TOP/ LOWER EYELINER P 1,999 (2 SESSIONS)",
-      "KOREAN BBGLOW P 1,499 (PER SESSION)",
-      "LIP TATTOO/ LIP PIGMENTATION P 2,999 (2 SESSIONS)"
-    ],
-    "EXPRESS OFFER (30 MINS.)": [
-      "BACK MASSAGE P 399",
-      "HEAD MASSAGE P 399",
-      "FOOT MASSAGE P 399",
-      "HAND MASSAGE P 399",
-      "FOOT REFLEX P 499",
-      "HAND REFLEX P 499",
-      "HEAD MASSAGE + EAR CANDLING P 499",
-      "EAR CANDLING P 199"
-    ],
-    "HAPPY NAILS": [
-      "BASIC MANICURE P 120",
-      "BASIC PEDICURE P 170",
-      "FOOTSPA P 300",
-      "HANDSPA P 300",
-      "GEL REMOVAL IN 100 / OUT 200",
-      "SOFT GEL REMOVAL IN 200 / OUT 300",
-      "SOFTGEL NAIL EXTENSIONS P 1,700",
-      "GEL MANICURE P 550",
-      "GEL PEDICURE P 650",
-      "FOOTSPA OR HANDSPA WITH WHITENING SCRUB P 400 WITH CALLUS REMOVAL P 450"
-    ],
-    "PROMO PACKAGES": [
-      "PACKAGE 1: UV GEL MANICURE + BASIC PEDICURE + CLASSIC FOOTSPA P 850",
-      "PACKAGE 2: UV GEL MANICURE + BASIC PEDICURE + DELUXE FOOTSPA P 900",
-      "PACKAGE 3: UV GEL MANICURE + UV GEL PEDICURE + CLASSIC FOOTSPA P 1,300",
-      "PACKAGE 4: UV GEL MANICURE + UV GEL PEDICURE + DELUXE FOOTSPA WITH WHITENING SCRUB P 1,400",
-      "PACKAGE 5: CLASSIC FOOTSPA + BASIC PEDICURE + 30 MINS. FOOT MASSAGE P 750",
-      "PACKAGE 6: DELUXE FOOTSPA WITH WHITENING SCRUB + BASIC PEDICURE + 30 MINS. FOOT MASSAGE P 800",
-      "PACKAGE 7: NATURAL EYELASH OR LASH LIFT (ADD 100 FOR TINT) + UV GEL MANICURE P 950",
-      "PACKAGE 8: FOOTSPA + UV GELPEDICURE P 850",
-      "PACKAGE 9: FOOTSPA + BASIC PEDICURE + FOOT REFLEX P 850",
-      "PACKAGE 10: FOOTSPA + UV GEL PEDICURE + FOOT MASSAGE P 1,150"
-    ],
-    "THERAPEUTIC HEAT": [
-      "HAND PARAFFIN P 250",
-      "FOOT PARAFFIN P 300",
-      "HAND PARAFFIN + HANDSPA P 550",
-      "FOOT PARAFFIN + FOOT SPA P 600",
-      "HAND PARAFFIN + HAND MASSAGE P 550",
-      "FOOT PARAFFIN + FOOT MASSAGE P 600"
-    ],
-    "WAX – OUT": [
-      "UNDER ARM P 399 / P 499",
-      "HALF LEGS P 499 / P 599",
-      "FULL LEGS P 699 / P 799",
-      "BRAZILLIAN P 999 / P 1,099",
-      "UPPER/ LOWER LIP P 299 / P 399",
-      "FULL FACE P 899 / P 999",
-      "FULL ARMS P 599 / P 699"
-    ],
-    "ES-FACIALY FOR YOU": [
-      "HYDRAFACIAL WITH COLLAGEN MASK P 899",
-      "BLACK DOLL CARBON LASER P 1,999 (2 SESSIONS)",
-      "BLACK DOLL CARBON LASER LAY – AWAY PROMO",
-      "4+1 SESSIONS P 4,500 DOWN P 2,500 SUCCEEDING IS P 1,000",
-      "9+1 SESSIONS P 9,000 DOWN P 3,000 SUCCEEDING IS P 1,000",
-      "ADD 100 FOR PDT LIGHT OR COLLAGEN MASK",
-      "HYDRAFACIAL + BLACK DOLL + EXILLIS/ HIFU P 3,399",
-      "HYDRAFACIAL + BBGLOW + COLLAGEN PDT P 1,899",
-      "BLACK DOLL + EXILLIS / HIFU + PDT P 2,499",
-      "HYDRAFACIAL + BBGLOWBLUSH + PDT P 2,199"
-    ],
-    "FACE AND BODY CONTOURING": [
-      "HIFU P 1,499 / PER SESSION",
-      "EXILLISS P 1,499 / PER SESSION 30 MINS.",
-      "EMSLIM P 2,000/ PER SESSION 30 MINS.",
-      "CRYOLIPOLYSIS P 1,499/ SESSION /BODY AREA",
-      "CRYOLIPOLYSIS P 999 / CHIN AREA",
-      "SUPER TRIO COMBO P 3,499 1 SESSION EACH",
-      "LAY-WAY PROMO P 7,499",
-      "EXILLIS 6+1 SESSIONS",
-      "EMSLIM 5+1 SESSIONS",
-      "POWERCOMBO EXISLIM 3+3 SESSIONS"
-    ],
-    "LASER HAIR REMOVAL / WHITENING": [
-      "DIODE LASER UNDERARM 1 SESSION P 899",
-      "DIODE LASER BRAZILLIAN 1 SESSION P 1,999",
-      "DIODE LASER FULL ARMS 1 SESSION P 1,499",
-      "DIODE LASER LOWER/UPPER LEGS 1 SESSION P 1,999",
-      "DIODE LASER UPPER LIP 1 SESSION P 599",
-      "DIODE LASER LOWER LIP 1 SESSION P 899",
-      "DIODE LASER BIKINI LINE 1 SESSION P 1,099",
-      "DIODE LASER FULL FACE MALE 1 SESSION P 2,999",
-      "DIODE LASER FULL FACE FEMALE 1 SESSION P 1,999",
-      "ADD ON FOR WHITENING SCRUB P 200"
-    ],
-    "PICOSURE LASER TREATMENT": [
-      "LIP P 999",
-      "KNEE / NECK / ELBOW/ UNDERARM / FACE P 1,499",
-      "2 SESSIONS PICO MELASMA P 4,000",
-      "2 SESSIONS TATTOO REMOVAL OR BIRTH 1-3 INC. P 3,000",
-      "PROMO 4+1 SESSIONS ANY PART P 4,000"
-    ],
-    "WARTS REMOVAL FRACTIONAL LASER": [
-      "FACE / NECK P 1,999",
-      "BACK P 2,999",
-      "FACE / NECK / BACK P 5,499",
-      "SKIN TAG BY AREA P 1,499",
-      "CO2 FRACTIONAL LASER LAY-AWAY 3+2 SESSIONS P 7,997 DOWN P 3,999"
-    ]
-  };
-
-  let servicesHTML = '<option value="">Select a service</option>';
-  for (const [category, serviceList] of Object.entries(services)) {
-    servicesHTML += `<optgroup label="${category}">`;
-    serviceList.forEach(service => {
-      servicesHTML += `<option value="${service}">${service}</option>`;
+  serviceDropdown.innerHTML = '';
+  
+  // Group services by category from Firebase
+  const groupedServices = {};
+  
+  window.servicesCache.byId.forEach((service, serviceId) => {
+    const category = service.category || 'Other';
+    if (!groupedServices[category]) {
+      groupedServices[category] = [];
+    }
+    groupedServices[category].push({
+      id: serviceId,
+      name: service.name,
+      price: service.price,
+      category: category
     });
-    servicesHTML += '</optgroup>';
-  }
-  serviceSelect.innerHTML = servicesHTML;
+  });
+  
+  // Sort categories and render
+  Object.keys(groupedServices).sort().forEach(category => {
+    const categoryHeader = document.createElement('div');
+    categoryHeader.className = 'service-category-header';
+    categoryHeader.textContent = category;
+    serviceDropdown.appendChild(categoryHeader);
+    
+    groupedServices[category].sort((a, b) => a.name.localeCompare(b.name)).forEach(service => {
+      const option = document.createElement('div');
+      option.className = 'service-option';
+      option.dataset.serviceId = service.id;
+      option.dataset.serviceName = service.name;
+      option.dataset.servicePrice = service.price;
+      
+      option.innerHTML = `
+        <input type="checkbox" id="service-${service.id}" data-service-id="${service.id}">
+        <label for="service-${service.id}" class="cursor-pointer flex-1">
+          ${service.name} - ₱${service.price.toLocaleString()}
+        </label>
+      `;
+      
+      option.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const checkbox = option.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+        }
+        updateSelectedServices();
+      });
+      
+      serviceDropdown.appendChild(option);
+    });
+  });
+}
+
+function populateServiceDropdown() {
+  const dropdown = document.getElementById('serviceDropdown');
+  if (!dropdown) return;
+  
+  dropdown.innerHTML = '';
+  
+  const allOption = document.createElement('a');
+  allOption.className = 'dropdown-item selected';
+  allOption.textContent = 'All Services';
+  allOption.onclick = (event) => selectService('All Services', event);
+  dropdown.appendChild(allOption);
+  
+  const categories = Array.from(window.servicesCache.byCategory.keys()).sort();
+  
+  categories.forEach(category => {
+    const item = document.createElement('a');
+    item.className = 'dropdown-item';
+    item.textContent = category;
+    item.onclick = (event) => selectService(category, event);
+    dropdown.appendChild(item);
+  });
 }
 
 function updateSelectedServices() {
-  // No longer needed with simple select dropdown
-  // This function is kept for compatibility but does nothing
+  const checkboxes = document.querySelectorAll('#serviceModalDropdown input[type="checkbox"]:checked');
+  const selectedServices = Array.from(checkboxes).map(cb => {
+    const option = cb.closest('.service-option');
+    return {
+      id: option.dataset.serviceId,
+      name: option.dataset.serviceName,
+      price: option.dataset.servicePrice
+    };
+  });
+  
+  displaySelectedServices(selectedServices);
+  
+  // Update selected state in dropdown
+  document.querySelectorAll('.service-option').forEach(option => {
+    const checkbox = option.querySelector('input[type="checkbox"]');
+    if (checkbox.checked) {
+      option.classList.add('selected');
+    } else {
+      option.classList.remove('selected');
+    }
+  });
 }
 
 function displaySelectedServices(services) {
@@ -2256,22 +2234,43 @@ function removeService(serviceId, event) {
 }
 
 function getSelectedServices() {
-  const serviceSelect = document.getElementById('service');
-  if (serviceSelect && serviceSelect.value) {
-    return [{
-      name: serviceSelect.value,
-      value: serviceSelect.value
-    }];
-  }
-  return [];
+  const checkboxes = document.querySelectorAll('#serviceModalDropdown input[type="checkbox"]:checked');
+  return Array.from(checkboxes).map(cb => {
+    const option = cb.closest('.service-option');
+    return {
+      id: option.dataset.serviceId,
+      name: option.dataset.serviceName,
+      price: parseFloat(option.dataset.servicePrice)
+    };
+  });
 }
 
 function clearServiceSelection() {
-  const serviceSelect = document.getElementById('service');
-  if (serviceSelect) {
-    serviceSelect.value = '';
-  }
+  document.querySelectorAll('#serviceModalDropdown input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  updateSelectedServices();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const serviceContainer = document.getElementById('serviceSelectContainer');
+  const serviceDropdown = document.getElementById('serviceModalDropdown');
+  
+  if (serviceContainer) {
+    serviceContainer.addEventListener('click', (e) => {
+      e.stopPropagation();
+      serviceDropdown.classList.toggle('hidden');
+    });
+  }
+  
+  document.addEventListener('click', (e) => {
+    if (serviceContainer && serviceDropdown && 
+        !serviceContainer.contains(e.target) && 
+        !serviceDropdown.contains(e.target)) {
+      serviceDropdown.classList.add('hidden');
+    }
+  });
+});
 
 // Multi-select event listeners removed - using simple select dropdown now
 
@@ -2283,47 +2282,47 @@ function clearServiceSelection() {
       icon.classList.toggle('fa-chevron-up');
     }
 
-    function selectService(service, event) {
-      activeService = service;
-      selectedServiceSpan.textContent = service;
-      document.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('selected'));
-      event.target.classList.add('selected');
-      document.getElementById('serviceDropdown').classList.remove('show');
-      document.getElementById('dropdownIcon').classList.add('fa-chevron-down');
-      document.getElementById('dropdownIcon').classList.remove('fa-chevron-up');
-      currentPage = 1;
-      renderTable();
-    }
+function selectService(service, event) {
+  activeService = service;
+  selectedServiceSpan.textContent = service;
+  document.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('selected'));
+  event.target.classList.add('selected');
+  document.getElementById('serviceDropdown').classList.remove('show');
+  document.getElementById('dropdownIcon').classList.add('fa-chevron-down');
+  document.getElementById('dropdownIcon').classList.remove('fa-chevron-up');
+  currentPage = 1;
+  renderTable();
+}
 
     function toggleUserMenu() {
       document.getElementById('userMenu').classList.toggle('hidden');
     }
 
-    window.onclick = function(event) {
-      if (!event.target.matches('.dropdown-button') && !event.target.matches('.dropdown-button *')) {
-        document.getElementById('serviceDropdown').classList.remove('show');
-        document.getElementById('dropdownIcon').classList.add('fa-chevron-down');
-        document.getElementById('dropdownIcon').classList.remove('fa-chevron-up');
-      }
-      
-      if (!event.target.matches('#userMenuButton') && !event.target.matches('#userMenuButton *')) {
-        document.getElementById('userMenu').classList.add('hidden');
-      }
-    }
+window.onclick = function(event) {
+  if (!event.target.matches('.dropdown-button') && !event.target.matches('.dropdown-button *')) {
+    document.getElementById('serviceDropdown').classList.remove('show');
+    document.getElementById('dropdownIcon').classList.add('fa-chevron-down');
+    document.getElementById('dropdownIcon').classList.remove('fa-chevron-up');
+  }
+  
+  if (!event.target.matches('#userMenuButton') && !event.target.matches('#userMenuButton *')) {
+    document.getElementById('userMenu').classList.add('hidden');
+  }
+}
 
-    function populateStaffDropdown() {
-      const employeeSelect = document.getElementById('employeeSelect');
-      employeeSelect.innerHTML = '<option value="">Select employee</option>';
-      
-      // Add only Staff 1-3 options
-      const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
-      staffOptions.forEach(staffName => {
-        const option = document.createElement('option');
-        option.value = staffName;
-        option.textContent = staffName;
-        employeeSelect.appendChild(option);
-      });
-    }
+function populateStaffDropdown() {
+  const employeeSelect = document.getElementById('employeeSelect');
+  employeeSelect.innerHTML = '<option value="">Select employee</option>';
+  
+  // Add only Staff 1-3 options
+  const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
+  staffOptions.forEach(staffName => {
+    const option = document.createElement('option');
+    option.value = staffName;
+    option.textContent = staffName;
+    employeeSelect.appendChild(option);
+  });
+}
 
     function formatTimeDisplay(timeStr) {
       if (!timeStr) return '-';
@@ -2653,32 +2652,32 @@ async function deleteCustomer() {
   });
 }
 
-    async function saveCustomer() {
-      const customerName = document.getElementById('customerName').value.trim();
-      const customerEmail = document.getElementById('customerEmail').value.trim();
-      const selectedServices = getSelectedServices();
-      const status = document.getElementById('statusSelect').value;
-      const contactNumber = document.getElementById('contactNumber').value.trim();
-      const employee = document.getElementById('employeeSelect').value;
-      const dateTime = document.getElementById('appointmentDate').value;
-      
-      let hasError = false;
+async function saveCustomer() {
+const customerName = document.getElementById('customerName').value.trim();
+const customerEmail = document.getElementById('customerEmail').value.trim();
+const selectedServices = getSelectedServices();
+const status = document.getElementById('statusSelect').value;
+const contactNumber = document.getElementById('contactNumber').value.trim();
+const employee = document.getElementById('employeeSelect').value;
+const dateTime = document.getElementById('appointmentDate').value;
 
-      clearErrors();
+let hasError = false;
 
-      if (!customerName) {
-        showError('customerName', 'nameError');
-        hasError = true;
-      }
+clearErrors();
 
-      if (customerEmail && !validateEmail(customerEmail)) {
-        showError('customerEmail', 'emailError');
-        hasError = true;
-      }
+if (!customerName) {
+  showError('customerName', 'nameError');
+  hasError = true;
+}
 
-const serviceValue = document.getElementById('service').value;
-if (!serviceValue) {
-  showError('service', 'serviceError');
+if (customerEmail && !validateEmail(customerEmail)) {
+  showError('customerEmail', 'emailError');
+  hasError = true;
+}
+
+// ✅ Only one check needed - the duplicate lines are removed
+if (selectedServices.length === 0) {
+  showError('serviceSelectContainer', 'serviceError');
   hasError = true;
 }
 
@@ -2708,7 +2707,8 @@ if (!serviceValue) {
 const customerData = {
   name: customerName,
   email: customerEmail || '',
-  service: serviceValue, 
+  services: selectedServices,
+  service: selectedServices[0]?.name || '', // Keep for backward compatibility
   status: status || 'Pending',
   phone: normalizedPhone,
   staff: employee,
@@ -2746,18 +2746,27 @@ if (editMode && selectedCustomerId) {
   // Normal update (not cancellation)
   await updateDoc(customerDoc, customerData);
   
-  // Send appropriate email based on status change
-  if (customerEmail && statusChanged) {
-    await window.sendAppointmentEmail(customerData);
-  }
+// Send appropriate email based on status change
+if (customerEmail && statusChanged) {
+  const emailData = {
+    ...customerData,
+    service: selectedServices.map(s => s.name).join(', ')
+  };
+  await window.sendAppointmentEmail(emailData);
+}
+  
 } else {
   customerData.createdAt = serverTimestamp();
   const customersRef = collection(window.db, "appointments");
   await addDoc(customersRef, customerData);
   
-  if (customerEmail) {
-    await window.sendAppointmentEmail(customerData);
-  }
+if (customerEmail) {
+  const emailData = {
+    ...customerData,
+    service: selectedServices.map(s => s.name).join(', ')
+  };
+  await window.sendAppointmentEmail(emailData);
+}
 }
         
         closeEditModal();

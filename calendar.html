@@ -1288,14 +1288,15 @@ window.confirmCancellation = confirmCancellation;
         this.init();
       }
 
-      async init() {
-        this.bindEvents();
-        await this.loadStaffOnce();
-        this.setupServicesListener();
-        this.setupCustomersListener();
-        this.renderCalendar();
-        this.setMinDateTime();
-      }
+async init() {
+  this.bindEvents();
+  // await this.loadStaffOnce(); // No longer needed - using Staff 1-3
+  this.populateStaffDropdown(); // Call directly since it's now static
+  this.setupServicesListener();
+  this.setupCustomersListener();
+  this.renderCalendar();
+  this.setMinDateTime();
+}
 
       async loadStaffOnce() {
         try {
@@ -1314,16 +1315,16 @@ populateStaffDropdown() {
   const employeeSelect = document.getElementById('employeeSelect');
   employeeSelect.innerHTML = '<option value="">Select employee</option>';
   
-  // Filter to only show admin and staff users, exclude customers
-  this.allStaff
-    .filter(staff => staff.role === 'admin' || staff.role === 'staff')
-    .forEach(staff => {
-      const option = document.createElement('option');
-      option.value = staff.fullName || staff.email;
-      option.textContent = staff.fullName || staff.email;
-      employeeSelect.appendChild(option);
-    });
+  // Add only Staff 1-3 options
+  const staffOptions = ['Staff 1', 'Staff 2', 'Staff 3'];
+  staffOptions.forEach(staffName => {
+    const option = document.createElement('option');
+    option.value = staffName;
+    option.textContent = staffName;
+    employeeSelect.appendChild(option);
+  });
 }
+
       setupServicesListener() {
         if (this.servicesListener) this.servicesListener();
 
